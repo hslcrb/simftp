@@ -38,5 +38,10 @@ ENV/
 Thumbs.db
 
 # Application specific
-config.json
+config/
 *.log
+*.crt
+*.key
+server_config.json
+users.json
+client_config.json
