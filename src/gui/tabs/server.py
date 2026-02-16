@@ -41,14 +41,18 @@ class ServerTab(ttk.Frame):
         
         row1 = ttk.Frame(cfg_frame); row1.pack(fill=tk.X, pady=2)
         ttk.Label(row1, text="포트:").pack(side=tk.LEFT)
-        self.port_entry = ttk.Entry(row1, width=8, state=tk.DISABLED)
+        self.port_entry = ttk.Entry(row1, width=8, state="readonly")
         self.port_entry.pack(side=tk.LEFT, padx=5)
-        self.port_entry.insert(0, str(self.config.get('port', 2121)))
+        
+        # readonly 상태에서 값을 넣기 위해 일시적으로 해제 후 입력
+        self.port_entry.config(state=tk.NORMAL)
+        self.port_entry.insert(0, str(self.config.get('port', 14729)))
+        self.port_entry.config(state="readonly")
         
         # 포트 잠금 해제 체크박스
         self.port_unlock = tk.BooleanVar(value=False)
         self.port_lock_check = ttk.Checkbutton(row1, text="수정", variable=self.port_unlock,
-                                              command=lambda: self.port_entry.config(state=tk.NORMAL if self.port_unlock.get() else tk.DISABLED))
+                                              command=lambda: self.port_entry.config(state=tk.NORMAL if self.port_unlock.get() else "readonly"))
         self.port_lock_check.pack(side=tk.LEFT, padx=2)
         
         ttk.Label(row1, text="IP (로컬/공외):").pack(side=tk.LEFT, padx=(10, 5))
@@ -230,8 +234,18 @@ class ServerTab(ttk.Frame):
 
     def update_ui_state(self, running):
         state = tk.DISABLED if running else tk.NORMAL
-        self.port_entry.config(state=state)
-        self.root_entry.config(state=state) # Changed from root_btn to root_entry
+        ro_state = tk.DISABLED if running else "readonly"
+        
+        # 가동 중에는 수정 체크박스도 비활성화
+        self.port_lock_check.config(state=state)
+        
+        # 수정 체크박스가 체크되어 있어도 가동 중이면 강제 잠금
+        if running:
+            self.port_entry.config(state=tk.DISABLED)
+        else:
+            self.port_entry.config(state=tk.NORMAL if self.port_unlock.get() else "readonly")
+            
+        self.root_entry.config(state=state)
         self.root_btn.config(state=state)
         self.anon_check.config(state=state)
         self.ftps_check.config(state=state)
