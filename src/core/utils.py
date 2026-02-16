@@ -42,7 +42,7 @@ def generate_ssl_cert(cert_path, key_path):
         k.generate_key(crypto.TYPE_RSA, 2048)
         
         cert = crypto.X509()
-        cert.get_subject().CN = "SimpleFTP-Server"
+        cert.get_subject().CN = "simftp-Server"
         cert.set_serial_number(1000)
         
         # 유효 기간 설정 (현재부터 10년)

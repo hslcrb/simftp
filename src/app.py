@@ -8,7 +8,7 @@ class SimpleFTPApp:
     """통합 FTP 서버 및 클라이언트 애플리케이션 본체"""
     def __init__(self, root):
         self.root = root
-        self.root.title("🚀 SimpleFTP - 전문 통합 솔루션")
+        self.root.title("🚀 simftp - 전문 통합 솔루션")
         self.root.geometry("1100x750")
         
         # 데이터 관리자 초기화
