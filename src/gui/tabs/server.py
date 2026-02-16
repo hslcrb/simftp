@@ -41,9 +41,15 @@ class ServerTab(ttk.Frame):
         
         row1 = ttk.Frame(cfg_frame); row1.pack(fill=tk.X, pady=2)
         ttk.Label(row1, text="포트:").pack(side=tk.LEFT)
-        self.port_entry = ttk.Entry(row1, width=8)
+        self.port_entry = ttk.Entry(row1, width=8, state=tk.DISABLED)
         self.port_entry.pack(side=tk.LEFT, padx=5)
         self.port_entry.insert(0, str(self.config.get('port', 2121)))
+        
+        # 포트 잠금 해제 체크박스
+        self.port_unlock = tk.BooleanVar(value=False)
+        self.port_lock_check = ttk.Checkbutton(row1, text="수정", variable=self.port_unlock,
+                                              command=lambda: self.port_entry.config(state=tk.NORMAL if self.port_unlock.get() else tk.DISABLED))
+        self.port_lock_check.pack(side=tk.LEFT, padx=2)
         
         ttk.Label(row1, text="IP (로컬/공외):").pack(side=tk.LEFT, padx=(10, 5))
         self.ip_display = ttk.Label(row1, text=get_local_ip(), foreground="blue", font=("Consolas", 10, "bold"))
