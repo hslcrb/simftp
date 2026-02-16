@@ -1,0 +1,3 @@
+# FTP 서버 구현을 위한 패키지
+pyftpdlib>=1.5.9
+pyopenssl  # FTPS(TLS/SSL) 지원을 위해 추가

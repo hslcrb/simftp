@@ -1,0 +1,10 @@
+{
+    "port": 2121,
+    "root_dir": "C:\\Users\\user\\ftp_root",
+    "allow_anonymous": false,
+    "use_ftps": false,
+    "cert_path": "config/server.crt",
+    "key_path": "config/server.key",
+    "max_cons": 256,
+    "max_cons_per_ip": 5
+}

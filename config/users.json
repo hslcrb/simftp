@@ -1,0 +1,8 @@
+[
+    {
+        "username": "user",
+        "password": "12345",
+        "home_dir": "C:\\Users\\user\\ftp_root",
+        "perms": "elradfmw"
+    }
+]
