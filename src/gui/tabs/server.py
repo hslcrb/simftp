@@ -23,6 +23,25 @@ class ServerTab(ttk.Frame):
         self.use_ftps = tk.BooleanVar(value=self.config.get('use_ftps', False))
         self.allow_anonymous = tk.BooleanVar(value=self.config.get('allow_anonymous', False))
         self.editing_index = None
+        
+        # UI 위젯 속성 초기화 (AttributeError 방지)
+        self.port_entry = None
+        self.port_lock_check = None
+        self.ip_display = None
+        self.pub_ip_display = None
+        self.root_entry = None
+        self.root_btn = None
+        self.anon_check = None
+        self.ftps_check = None
+        self.nat_check = None
+        self.tree = None
+        self.e_id = None
+        self.e_pw = None
+        self.e_home = None
+        self.save_btn = None
+        self.log_text = None
+        self.start_btn = None
+        self.stop_btn = None
 
         self._setup_ui()
         self.refresh_users_tree()
@@ -75,14 +94,18 @@ class ServerTab(ttk.Frame):
         ttk.Label(row2, text="Root:").pack(side=tk.LEFT)
         self.root_entry = ttk.Entry(row2); self.root_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         self.root_entry.insert(0, self.config.get('root_dir', ''))
-        ttk.Button(row2, text="📁", width=3, command=self._browse_root).pack(side=tk.LEFT)
+        self.root_btn = ttk.Button(row2, text="📁", width=3, command=self._browse_root)
+        self.root_btn.pack(side=tk.LEFT)
 
         row3 = ttk.Frame(cfg_frame); row3.pack(fill=tk.X, pady=5)
-        ttk.Checkbutton(row3, text="익명 허용", variable=self.allow_anonymous).pack(side=tk.LEFT, padx=5)
-        ttk.Checkbutton(row3, text="FTPS (보안)", variable=self.use_ftps).pack(side=tk.LEFT, padx=10)
+        self.anon_check = ttk.Checkbutton(row3, text="익명 허용", variable=self.allow_anonymous)
+        self.anon_check.pack(side=tk.LEFT, padx=5)
+        self.ftps_check = ttk.Checkbutton(row3, text="FTPS (보안)", variable=self.use_ftps)
+        self.ftps_check.pack(side=tk.LEFT, padx=10)
         
         self.use_nat = tk.BooleanVar(value=False)
-        ttk.Checkbutton(row3, text="NAT/외부접속 지원", variable=self.use_nat).pack(side=tk.LEFT, padx=5)
+        self.nat_check = ttk.Checkbutton(row3, text="NAT/외부접속 지원", variable=self.use_nat)
+        self.nat_check.pack(side=tk.LEFT, padx=5)
 
         list_frame = ttk.LabelFrame(left, text="👥 계정 목록", padding=10)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)

@@ -1,5 +1,5 @@
 {
-    "port": 2121,
+    "port": 14729,
     "root_dir": "C:/Users/user/Documents/slmftp_share",
     "allow_anonymous": false,
     "use_ftps": true,
