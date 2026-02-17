@@ -34,6 +34,11 @@ erDiagram
     }
 ```
 
+### 1.1 JSON 기반 설정 관리 (User Request)
+모든 설정과 데이터는 **사람이 읽고 쓰기 쉬운 JSON 포맷**으로 관리되어 투명성과 이식성을 보장합니다.
+*   **`config/server_config.json`**: 서버의 핵심 엔진 설정 (포트, 루트 경로, 보안 옵션 등)
+*   **`config/users.json`**: 사용자 계정, 비밀번호(암호화), 홈 디렉토리, 권한 정보
+
 ### 2. 고정밀 상대 경로 시스템 (Portable Architecture)
 *   **Zero-Configuration**: 설정 파일 내의 모든 경로가 현재 실행 위치를 기준으로 자동 계산됩니다.
 *   **Home Path Inheritance**: 사용자 홈 디렉토리가 서버 루트 하위일 경우 자동으로 `./user`와 같은 상대 경로로 저장되어 루트 이동 시 함께 계승됩니다.
