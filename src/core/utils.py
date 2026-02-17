@@ -8,39 +8,53 @@ def get_local_ip():
     """시스템 명령어를 사용하여 실제 네트워크 어댑터에 할당된 유효한 내부 IP를 반환합니다."""
     import subprocess
     try:
-        # ipconfig 결과에서 IPv4 주소만 추출 (가장 일반적인 방식)
-        result = subprocess.run(['ipconfig'], capture_output=True, text=True)
+        # ipconfig 결과에서 IPv4 주소만 추출
+        result = subprocess.run(['ipconfig'], capture_output=True, text=True, shell=True)
+        ips = []
         for line in result.stdout.split('\n'):
             if 'IPv4' in line and ':' in line:
                 ip = line.split(':')[-1].strip()
-                # 가상 이더넷이나 루프백이 아닌 실제 할당된 IP 탐색 (보통 192.168.x.x 또는 10.x.x.x)
-                if ip.startswith('192.168.') or ip.startswith('10.'):
-                    return ip
-        # 못 찾으면 기본 소켓 방식 시도
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        res = s.getsockname()[0]
-        s.close()
-        return res
+                # 루프백 주소 제외
+                if ip and not ip.startswith('127.'):
+                    ips.append(ip)
+        
+        # 실제 사설망 대역(192.168, 10, 172.16) 우선 순위로 반환
+        for ip in ips:
+            if ip.startswith('192.168.') or ip.startswith('10.') or ip.startswith('172.'):
+                return ip
+        return ips[0] if ips else "127.0.0.1"
     except:
         return "127.0.0.1"
 
 def get_public_ip():
-    """프록시를 완전히 차단한 PowerShell 명령어를 사용하여 실시간 공인 IP를 조회합니다."""
+    """여러 서비스를 통해 프록시 간섭 없이 가장 정확한 공인 IP를 조회합니다."""
     import subprocess
-    try:
-        # 시스템 프록시 설정을 코드 레벨에서 무시하도록 PowerShell 명령 구성
-        ps_cmd = "[System.Net.WebRequest]::DefaultWebProxy = [System.Net.GlobalProxySelection]::GetEmptyWebProxy(); Invoke-RestMethod -Uri 'https://api.ipify.org'"
-        cmd = ['powershell', '-Command', ps_cmd]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, shell=True)
-        
-        ip = result.stdout.strip()
-        if ip and ip.count('.') == 3:
-            return ip
-    except Exception:
-        pass
-    return "확인 불가"
+    # 신뢰할 수 있는 여러 IP 조회 서비스 목록
+    services = [
+        "https://api.ipify.org",
+        "https://ifconfig.me/ip",
+        "https://checkip.amazonaws.com",
+        "https://api.my-ip.io/ip"
+    ]
+    
+    for service in services:
+        try:
+            # PowerShell을 사용하여 시스템 프록시를 완전히 무력화하고 조회
+            ps_script = f"$ProgressPreference = 'SilentlyContinue'; [System.Net.WebRequest]::DefaultWebProxy = $null; Invoke-RestMethod -Uri '{service}'"
+            cmd = ['powershell', '-Command', ps_script]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, shell=True)
+            
+            ip = result.stdout.strip()
+            # IP 형식(4개 옥텟) 검증 및 '가짜' 주소(.1)가 아닌 실제 주소 응답을 기다림
+            if ip and ip.count('.') == 3:
+                # 브라우저와 동일한 결과를 얻기 위해 .1로 끝나는 의심스러운 경로는 후순위로 미룸 (사용자 요청 반영)
+                if not ip.endswith('.1'):
+                    return ip
+                last_res = ip # .1이라도 일단 저장
+        except:
+            continue
+    
+    return last_res if 'last_res' in locals() else "확인 불가"
 
 def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
