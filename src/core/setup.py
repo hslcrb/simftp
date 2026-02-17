@@ -8,21 +8,22 @@ def initialize_environment(config_dir='config'):
 
     templates = {
         'server_config.json': {
-            "port": 2121,
-            "root_dir": os.path.abspath(os.path.join(os.path.expanduser("~"), "ftp_root")),
+            "port": 14729,
+            "root_dir": "simftp_share",
             "allow_anonymous": False,
             "use_ftps": False,
             "cert_path": "config/server.crt",
             "key_path": "config/server.key",
             "max_cons": 256,
-            "max_cons_per_ip": 5
+            "max_cons_per_ip": 10,
+            "timeout": 600
         },
         'users.json': [
             {
-                "username": "user",
-                "password": "12345",
-                "home_dir": os.path.abspath(os.path.join(os.path.expanduser("~"), "ftp_root")),
-                "perms": "elradfmw"
+                "username": "admin",
+                "password": "gAAAAABpk_Kf8FDgIX836xbxw9uOtGDlhW-DJJtGnDemjVMA_gnLu3FtcnZB8r9cm9WhD7WgggvI3f27mZ-jEQgPjdqyo957Xg==", # '1234' encrypted
+                "home_dir": "",
+                "perms": "elrwadfm"
             }
         ],
         'client_config.json': {

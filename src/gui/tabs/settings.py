@@ -123,21 +123,39 @@ class SettingsTab(ttk.Frame):
         eng_frame = ttk.LabelFrame(container, text="⚙️ 서버 엔진 정밀 설정", padding=15)
         eng_frame.pack(fill=tk.X, pady=10)
         
+        # 권장 설정 버튼 (상단 배치)
+        self.recom_btn = tk.Button(
+            eng_frame, text="🚀 전문가 권장 설정 즉시 적용 & 서버 엔진 재시작", 
+            bg="#28a745", fg="white", font=("Malgun Gothic", 10, "bold"),
+            command=self.apply_recommended_and_restart, pady=8
+        )
+        self.recom_btn.pack(fill=tk.X, pady=(0, 15))
+
+        self.lock_max_cons = tk.BooleanVar(value=True)
+        self.lock_max_per_ip = tk.BooleanVar(value=True)
+        self.lock_timeout = tk.BooleanVar(value=True)
+
         e_row1 = ttk.Frame(eng_frame); e_row1.pack(fill=tk.X, pady=2)
         ttk.Label(e_row1, text="최대 동시 접속:").pack(side=tk.LEFT)
-        self.max_cons = ttk.Entry(e_row1, width=8); self.max_cons.pack(side=tk.LEFT, padx=5)
-        self.max_cons.insert(0, str(self.config_manager.get_server_config().get('max_cons', 50)))
-        
-        ttk.Label(e_row1, text="IP당 최대 접속:").pack(side=tk.LEFT, padx=(15, 0))
-        self.max_per_ip = ttk.Entry(e_row1, width=8); self.max_per_ip.pack(side=tk.LEFT, padx=5)
-        self.max_per_ip.insert(0, str(self.config_manager.get_server_config().get('max_cons_per_ip', 5)))
-        
+        self.max_cons = ttk.Entry(e_row1, width=8, state=tk.DISABLED); self.max_cons.pack(side=tk.LEFT, padx=5)
+        self.max_cons.insert(0, str(self.config_manager.get_server_config().get('max_cons', 256)))
+        ttk.Checkbutton(e_row1, text="잠금 해제", variable=self.lock_max_cons, 
+                        command=lambda: self.max_cons.config(state=tk.NORMAL if not self.lock_max_cons.get() else tk.DISABLED)).pack(side=tk.LEFT)
+
+        ttk.Label(e_row1, text="IP당 최대 접속:").pack(side=tk.LEFT, padx=(20, 0))
+        self.max_per_ip = ttk.Entry(e_row1, width=8, state=tk.DISABLED); self.max_per_ip.pack(side=tk.LEFT, padx=5)
+        self.max_per_ip.insert(0, str(self.config_manager.get_server_config().get('max_cons_per_ip', 10)))
+        ttk.Checkbutton(e_row1, text="잠금 해제", variable=self.lock_max_per_ip, 
+                        command=lambda: self.max_per_ip.config(state=tk.NORMAL if not self.lock_max_per_ip.get() else tk.DISABLED)).pack(side=tk.LEFT)
+
         e_row2 = ttk.Frame(eng_frame); e_row2.pack(fill=tk.X, pady=5)
         ttk.Label(e_row2, text="대기 타임아웃(초):").pack(side=tk.LEFT)
-        self.timeout = ttk.Entry(e_row2, width=8); self.timeout.pack(side=tk.LEFT, padx=5)
-        self.timeout.insert(0, str(self.config_manager.get_server_config().get('timeout', 300)))
-        
-        ttk.Button(e_row2, text="✅ 엔진 설정 저장", command=self.save_engine_settings).pack(side=tk.RIGHT)
+        self.timeout = ttk.Entry(e_row2, width=8, state=tk.DISABLED); self.timeout.pack(side=tk.LEFT, padx=5)
+        self.timeout.insert(0, str(self.config_manager.get_server_config().get('timeout', 600)))
+        ttk.Checkbutton(e_row2, text="잠금 해제", variable=self.lock_timeout, 
+                        command=lambda: self.timeout.config(state=tk.NORMAL if not self.lock_timeout.get() else tk.DISABLED)).pack(side=tk.LEFT)
+
+        ttk.Button(e_row2, text="💾 개별 엔진 설정 저장", command=self.save_engine_settings).pack(side=tk.RIGHT)
 
         # --- 정보 영역 ---
         info_frame = ttk.LabelFrame(container, text="ℹ️ 시스템 정보", padding=15)
@@ -275,3 +293,30 @@ class SettingsTab(ttk.Frame):
             messagebox.showinfo("성공", "엔진 설정이 저장되었습니다.\n서버를 재시작하면 적용됩니다.")
         except ValueError:
             messagebox.showerror("오류", "숫자 형식이 올바르지 않습니다.")
+
+    def apply_recommended_and_restart(self):
+        """권장 설정을 즉시 입력하고 저장한 뒤 서버 재시작"""
+        if not messagebox.askyesno("🚀 권장 설정 적용", "전문가용 권장 설정을 적용하고 서버를 재시작하시겠습니까?\n(최대 접속 256, IP당 10, 타임아웃 600초)"):
+            return
+            
+        try:
+            # UI 값 업데이트
+            for entry, val, lock in [(self.max_cons, "256", self.lock_max_cons), 
+                                     (self.max_per_ip, "10", self.lock_max_per_ip), 
+                                     (self.timeout, "600", self.lock_timeout)]:
+                entry.config(state=tk.NORMAL)
+                entry.delete(0, tk.END); entry.insert(0, val)
+                lock.set(True) # 다시 잠금
+                entry.config(state=tk.DISABLED)
+
+            # 설정 저장
+            cfg = self.config_manager.get_server_config()
+            cfg.update({"max_cons": 256, "max_cons_per_ip": 10, "timeout": 600})
+            self.config_manager.save_server_config(cfg)
+            
+            # 서버 재시작
+            self.server_tab.log("⚙️ [시스템 설정] 전문가 권장 설정이 적용되었습니다.")
+            self._restart_logic()
+            messagebox.showinfo("완료", "권장 설정이 적용되었으며 서버 엔진이 재가동되었습니다.")
+        except Exception as e:
+            messagebox.showerror("오류", f"적용 실패: {str(e)}")
