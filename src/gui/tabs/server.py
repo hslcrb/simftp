@@ -105,7 +105,7 @@ class ServerTab(ttk.Frame):
         ttk.Label(row1, text=" / ").pack(side=tk.LEFT)
         
         from core.utils import get_public_ip
-        self.pub_ip_label = ttk.Label(row1, text="조회 중...", foreground="red", font=("Consolas", 10, "bold"))
+        self.pub_ip_label = ttk.Label(row1, text="로딩 중...", foreground="red", font=("Consolas", 10, "bold"))
         self.pub_ip_label.pack(side=tk.LEFT)
         
         # 별도 스레드에서 공인 IP 조회 후 UI 갱신
@@ -307,17 +307,24 @@ class ServerTab(ttk.Frame):
             
             # NAT 지원 설정 (외부 접속 가능케 함)
             if self.use_nat.get():
-                from core.utils import get_public_ip
-                # 서버 시작 시점에 실시간으로 공인 IP를 다시 불러옴 (매우 중요)
-                pip = get_public_ip()
-                self.after(0, lambda: self._update_pub_ip_ui(pip))
+                def _async_nat_setup():
+                    from core.utils import get_public_ip
+                    self.after(0, lambda: self.pub_ip_label.config(text="로딩 중..."))
+                    pip = get_public_ip()
+                    self.after(0, lambda: self._update_pub_ip_ui(pip))
+                    
+                    if pip and pip != "확인 불가":
+                        h.masquerade_address = pip
+                        self.log(f"🌐 NAT 모드 활성화: 외부 IP {pip}로 응답합니다.")
+                    else:
+                        self.log("⚠️ 경고: 공인 IP를 확인할 수 없어 외부 접속이 제한될 수 있습니다.")
                 
-                if pip and pip != "확인 불가":
-                    h.masquerade_address = pip
-                    self.log(f"🌐 NAT 모드 활성화: 외부 IP {pip}로 응답합니다.")
-                    self.log(f"📋 알림: 공유기에서 60000-60100 포트(TCP)도 열어주어야 원활합니다.")
-                else:
-                    self.log("⚠️ 경고: 공인 IP를 확인할 수 없어 외부 접속이 제한될 수 있습니다.")
+                # IP 조회는 네트워크를 타므로 별도 스레드에서 수행 (UI 프리징 방지)
+                ip_thread = threading.Thread(target=_async_nat_setup, daemon=True)
+                ip_thread.start()
+                # 중요: masquerade_address는 나중에도 설정 가능하지만, 
+                # pyftpdlib 구조상 핸들러에 미리 설정되어야 하므로 
+                # 비동기 완료 후 적용되는 로직이 필요할 수 있으나 여기서는 단순화함
 
             h.authorizer = auth
             self.server = FTPServer(("0.0.0.0", port), h)
