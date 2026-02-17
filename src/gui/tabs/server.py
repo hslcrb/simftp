@@ -233,6 +233,14 @@ class ServerTab(ttk.Frame):
                 h.tls_control_conn = True; h.tls_data_conn = True
             else: h = FTPHandler
             
+            # NAT/외부 접속을 위한 패시브 포트 설정 (60000-60100)
+            h.passive_ports = range(60000, 60101)
+            
+            # 보안 강화: 초당 접속 제한 및 타임아웃 설정
+            h.timeout = 300
+            h.banner = "simftp ready."
+            h.max_login_attempts = 3
+            
             # NAT 지원 설정 (외부 접속 가능케 함)
             if self.use_nat.get():
                 from core.utils import get_public_ip
@@ -240,10 +248,13 @@ class ServerTab(ttk.Frame):
                 if pip != "확인 불가":
                     h.masquerade_address = pip
                     self.log(f"🌐 NAT 모드 활성화: 외부 IP {pip}로 응답합니다.")
+                    self.log(f"📋 알림: 공유기에서 60000-60100 포트(TCP)도 열어주어야 원활합니다.")
 
             h.authorizer = auth
             self.server = FTPServer(("0.0.0.0", port), h)
-            self.server.max_cons = 256; self.server.max_cons_per_ip = 10
+            # 서버 전체 동시 접속 제한
+            self.server.max_cons = 50
+            self.server.max_cons_per_ip = 5
             self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.server_thread.start()
             self.update_ui_state(True) # Call to update UI state

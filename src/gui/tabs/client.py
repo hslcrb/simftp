@@ -81,6 +81,8 @@ class ClientTab(ttk.Frame):
         self.r_tree.bind("<Double-1>", self._on_r_double_click)
         r_btn_row = ttk.Frame(r_wrap); r_btn_row.pack(fill=tk.X)
         ttk.Button(r_btn_row, text="⬇️ 다운로드", command=self.download).pack(side=tk.LEFT)
+        ttk.Button(r_btn_row, text="📁 새 폴더", command=self.mkdir_r).pack(side=tk.LEFT, padx=5)
+        ttk.Button(r_btn_row, text="🔄", width=3, command=self.refresh_r).pack(side=tk.LEFT)
         ttk.Button(r_btn_row, text="🗑️ 삭제", command=self.delete_r).pack(side=tk.RIGHT)
 
         self.status = ttk.Label(self, text="준비됨", relief=tk.SUNKEN, padding=2)
@@ -179,6 +181,19 @@ class ClientTab(ttk.Frame):
         if not sel: return
         n = self.r_tree.item(sel[0], "text")[3:]
         if messagebox.askyesno("삭제", f"서버에서 {n}을 삭제할까요?"):
-            try: self.ftp.delete(n)
-            except: self.ftp.rmd(n)
-            self.refresh_r()
+            try:
+                # 파일 삭제 시도 후 실패 시 폴더 삭제 시도
+                try: self.ftp.delete(n)
+                except: self.ftp.rmd(n)
+                self.refresh_r(); self.status.config(text=f"삭제 완료: {n}")
+            except Exception as e: messagebox.showerror("오류", str(e))
+
+    def mkdir_r(self):
+        if not self.ftp: return
+        from tkinter import simpledialog
+        n = simpledialog.askstring("새 폴더", "생성할 폴더 이름을 입력하세요:")
+        if n:
+            try:
+                self.ftp.mkd(n)
+                self.refresh_r(); self.status.config(text=f"폴더 생성 완료: {n}")
+            except Exception as e: messagebox.showerror("오류", str(e))
