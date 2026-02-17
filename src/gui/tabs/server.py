@@ -103,7 +103,7 @@ class ServerTab(ttk.Frame):
         self.ftps_check = ttk.Checkbutton(row3, text="FTPS (보안)", variable=self.use_ftps)
         self.ftps_check.pack(side=tk.LEFT, padx=10)
         
-        self.use_nat = tk.BooleanVar(value=False)
+        self.use_nat = tk.BooleanVar(value=True)
         self.nat_check = ttk.Checkbutton(row3, text="NAT/외부접속 지원", variable=self.use_nat)
         self.nat_check.pack(side=tk.LEFT, padx=5)
 
