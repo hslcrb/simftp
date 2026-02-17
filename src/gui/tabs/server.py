@@ -99,7 +99,7 @@ class ServerTab(ttk.Frame):
         self.port_lock_check.pack(side=tk.LEFT, padx=2)
         
         ttk.Label(row1, text="IP (내부/공인):").pack(side=tk.LEFT, padx=(10, 5))
-        self.ip_display = ttk.Label(row1, text=get_local_ip(), foreground="blue", font=("Consolas", 10, "bold"))
+        self.ip_display = ttk.Label(row1, text="로딩 중...", foreground="blue", font=("Consolas", 10, "bold"))
         self.ip_display.pack(side=tk.LEFT)
         
         ttk.Label(row1, text=" / ").pack(side=tk.LEFT)
@@ -108,16 +108,19 @@ class ServerTab(ttk.Frame):
         self.pub_ip_label = ttk.Label(row1, text="로딩 중...", foreground="red", font=("Consolas", 10, "bold"))
         self.pub_ip_label.pack(side=tk.LEFT)
         
-        # 별도 스레드에서 공인 IP 조회 후 UI 갱신
-        def update_pub_ip():
+        # 별도 스레드에서 내부/공인 IP 동시 조회 후 UI 갱신 (명령어 기반)
+        def update_all_ips():
             import time
-            self.after(0, lambda: self.pub_ip_label.config(text="로딩 중..."))
-            # Tkinter의 이벤트 루프가 문구를 먼저 그리도록 강제
+            from core.utils import get_local_ip, get_public_ip
+            self.after(0, lambda: [self.ip_display.config(text="로딩 중..."), self.pub_ip_label.config(text="로딩 중...")])
             self.after(0, self.update_idletasks)
-            time.sleep(1.2) # 로딩 상태를 확실히 인지할 수 있는 충분한 시간
+            time.sleep(1.2)
+            
+            lip = get_local_ip()
             pip = get_public_ip()
-            self.after(0, lambda: self._update_pub_ip_ui(pip))
-        threading.Thread(target=update_pub_ip, daemon=True).start()
+            
+            self.after(0, lambda: [self.ip_display.config(text=lip), self._update_pub_ip_ui(pip)])
+        threading.Thread(target=update_all_ips, daemon=True).start()
 
         row2 = ttk.Frame(cfg_frame); row2.pack(fill=tk.X, pady=2)
         ttk.Label(row2, text="Root:").pack(side=tk.LEFT)
@@ -314,12 +317,15 @@ class ServerTab(ttk.Frame):
             if self.use_nat.get():
                 def _async_nat_setup():
                     import time
-                    from core.utils import get_public_ip
-                    self.after(0, lambda: self.pub_ip_label.config(text="로딩 중..."))
+                    from core.utils import get_local_ip, get_public_ip
+                    self.after(0, lambda: [self.ip_display.config(text="로딩 중..."), self.pub_ip_label.config(text="로딩 중...")])
                     self.after(0, self.update_idletasks)
-                    time.sleep(1.0) # 서버 시작 시에도 로딩 효과를 확실히 줌
+                    time.sleep(1.0)
+                    
+                    lip = get_local_ip()
                     pip = get_public_ip()
-                    self.after(0, lambda: self._update_pub_ip_ui(pip))
+                    
+                    self.after(0, lambda: [self.ip_display.config(text=lip), self._update_pub_ip_ui(pip)])
                     
                     if pip and pip != "확인 불가":
                         h.masquerade_address = pip

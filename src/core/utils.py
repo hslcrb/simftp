@@ -27,15 +27,15 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """가장 정확한 결과를 내는 PowerShell 명령어를 사용하여 실시간 공인 IP를 조회합니다."""
+    """프록시를 완전히 차단한 PowerShell 명령어를 사용하여 실시간 공인 IP를 조회합니다."""
     import subprocess
     try:
-        # PowerShell은 시스템 네트워크 스택을 정직하게 사용하여 정확한 .199를 가져옵니다.
-        cmd = ['powershell', '-Command', "Invoke-RestMethod -Uri 'https://api.ipify.org'"]
+        # 시스템 프록시 설정을 코드 레벨에서 무시하도록 PowerShell 명령 구성
+        ps_cmd = "[System.Net.WebRequest]::DefaultWebProxy = [System.Net.GlobalProxySelection]::GetEmptyWebProxy(); Invoke-RestMethod -Uri 'https://api.ipify.org'"
+        cmd = ['powershell', '-Command', ps_cmd]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, shell=True)
         
         ip = result.stdout.strip()
-        # IP 형식 검증
         if ip and ip.count('.') == 3:
             return ip
     except Exception:
