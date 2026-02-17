@@ -284,10 +284,25 @@ class ServerTab(ttk.Frame):
                 messagebox.showerror("오류", "이미 존재하는 아이디입니다.")
                 return
 
-        # 양방향 암호화 적용 (나중에 복호화 가능하도록)
+        # [지능형 경로 관리] 서버 루트 하위 경로라면 상대 경로로 변환하여 저장
+        root = os.path.normpath(self.root_entry.get())
+        home_abs = os.path.normpath(home)
+        
+        try:
+            if os.path.commonpath([root, home_abs]) == root:
+                # 루트와 같거나 루트의 하위인 경우 상대 경로로 추출
+                rel_path = os.path.relpath(home_abs, root)
+                # 만약 루트 그 자체라면 '.' 가 반환됨
+                save_path = rel_path if rel_path != "." else ""
+            else:
+                save_path = home_abs # 루트 밖이라면 절대 경로 유지
+        except ValueError:
+            save_path = home_abs
+
+        # 양방향 암호화 적용
         encrypted_pw = encrypt_password(pw)
 
-        data = {"username": uid, "password": encrypted_pw, "home_dir": home, "perms": perms}
+        data = {"username": uid, "password": encrypted_pw, "home_dir": save_path, "perms": perms}
         if self.editing_index is not None: self.users[self.editing_index] = data
         else: self.users.append(data)
         self.config_manager.save_users(self.users); self.refresh_users_tree(); self._on_new_user()
@@ -300,21 +315,12 @@ class ServerTab(ttk.Frame):
             self.users.pop(idx); self.config_manager.save_users(self.users); self.refresh_users_tree()
 
     def _browse_root(self):
-        old_root = self.root_entry.get()
         d = filedialog.askdirectory()
         if d:
             new_root = os.path.normpath(d)
             self.root_entry.delete(0, tk.END)
             self.root_entry.insert(0, new_root)
-            
-            # 기존 유저들 중 예전 루트를 사용하던 유저가 있다면 일괄 변경 제안
-            if self.users:
-                if messagebox.askyesno("경로 동기화", "서버 루트가 변경되었습니다.\n기존 모든 사용자들의 전용 폴더도 이 경로로 함께 변경하시겠습니까?"):
-                    for u in self.users:
-                        u['home_dir'] = new_root
-                    self.config_manager.save_users(self.users)
-                    self.refresh_users_tree()
-                    self.log(f"🔄 [동기화] 모든 사용자의 경로를 {new_root}(으)로 업데이트했습니다.")
+            self.log(f"📍 [경로 설정] 서버 루트가 '{new_root}'(으)로 변경되었습니다.")
     
     def _browse_user_home(self):
         d = filedialog.askdirectory()
@@ -323,8 +329,13 @@ class ServerTab(ttk.Frame):
             self.e_home.insert(0, os.path.normpath(d))
 
     def refresh_users_tree(self):
+        root = self.root_entry.get()
         for i in self.tree.get_children(): self.tree.delete(i)
-        for u in self.users: self.tree.insert("", tk.END, text=f"👤 {u['username']}", values=(u['perms'], u['home_dir']))
+        for u in self.users:
+            display_home = u['home_dir']
+            if not os.path.isabs(display_home):
+                display_home = os.path.normpath(os.path.join(root, display_home))
+            self.tree.insert("", tk.END, text=f"👤 {u['username']}", values=(u['perms'], display_home))
 
     def log(self, message):
         """로그 텍스트 영역에 시간과 함께 메시지 추가"""
@@ -359,11 +370,14 @@ class ServerTab(ttk.Frame):
         try:
             auth = HashedAuthorizer()
             for u in self.users:
-                if not os.path.exists(u['home_dir']): os.makedirs(u['home_dir'])
-                # authorizer에는 실제 평문 비번을 전달 (validate_authentication에서 내부적으로 verify_password/decrypt_password 사용)
-                # authorizer의 add_user는 내부적으로 user_table에 저장만 하므로, 
-                # validate_authentication을 재정의한 HashedAuthorizer가 암호화된 값을 처리합니다.
-                auth.add_user(u['username'], u['password'], u['home_dir'], perm=u['perms'])
+                # [지능형 경로 결합] 상대 경로인 경우 현재 서버 루트와 결합
+                u_home = u['home_dir']
+                if not os.path.isabs(u_home):
+                    u_home = os.path.normpath(os.path.join(root, u_home))
+                
+                if not os.path.exists(u_home): os.makedirs(u_home)
+                auth.add_user(u['username'], u['password'], u_home, perm=u['perms'])
+            
             if self.allow_anonymous.get():
                 if not os.path.exists(root): os.makedirs(root)
                 auth.add_anonymous(root, perm="elr")
