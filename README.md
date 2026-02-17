@@ -45,25 +45,25 @@ erDiagram
 ```
 
 ### 2. NAT/공유기 환경 데이터 흐름 (Network Flow)
-외부망 사용자가 공유기를 거쳐 내부 PC로 접속하는 복잡한 단계를 simftp가 지능적으로 중계합니다.
+외부망 사용자가 인터넷 공유기(Gateway)를 거쳐 내부 PC로 접속하는 복잡한 단계를 simftp가 지능적으로 중계합니다.
 
 ```mermaid
 sequenceDiagram
-    participant Client as 외부 사용자 (Mobile/Remote)
-    participant SK_Router as SK 브로드밴드 공유기
+    participant Client as 외부 사용자 (Remote)
+    participant Router as 인터넷 공유기 (NAT Gateway)
     participant simftp as simftp 서버 (My PC)
 
     Note over Client, simftp: 🔵 Phase 1: 명령어 제어 채널 (Port: 14729)
-    Client->>SK_Router: 접속 요청 (내 공인 IP입력)
-    SK_Router->>simftp: 포트 포워딩 규칙에 따라 패킷 전달
+    Client->>Router: 접속 요청 (공인 IP 입력)
+    Router->>simftp: 포트 포워딩 규칙에 따라 패킷 중계
     simftp-->>Client: 220 simftp ready (접속 성공)
 
     Note over Client, simftp: 🟢 Phase 2: 지능형 IP 추적 및 데이터 채널
-    simftp->>SK_Router: ip.pe.kr API 호출 (프록시 무력화 PowerShell 엔진)
-    SK_Router-->>simftp: "현재 당신의 IP는 .199입니다"
-    simftp->>Client: "데이터 전송을 위해 60000-60100 포트를 여세요"
-    Client->>SK_Router: 데이터 채널 접속 시도
-    SK_Router->>simftp: 데이터 패킷 중계
+    simftp->>Router: ip.pe.kr API 호출 (프록시 무시 PowerShell 엔진)
+    Router-->>simftp: "현재 공인 IP 응답"
+    simftp->>Client: "데이터 전송을 위한 수동 포트 정보 전달"
+    Client->>Router: 데이터 채널 접속 시도
+    Router->>simftp: 데이터 패킷 중계
     simftp-->>Client: 파일 목록 및 전송 데이터 송출 (성공)
 ```
 
@@ -73,21 +73,21 @@ sequenceDiagram
 
 | 보안 계층 | 기술 사양 | 설명 |
 | :--- | :--- | :--- |
-| **비밀번호 보안** | **AES-256 Symmetric** | `master.key`를 통한 양방향 암호화로 관리자는 암호 확인이 가능하되, 파일 유출 시에는 안전합니다. |
+| **비밀번호 보안** | **AES-256 Symmetric** | `master.key`를 통한 양방향 암호화로 보안성과 관리 편의성을 동시에 확보합니다. |
 | **전송 보안** | **TLS/SSL (FTPS)** | 데이터 가로채기(Sniffing)를 방지하는 강력한 터널링 전송을 지원합니다. |
-| **접속 제어** | **Anti-Brute Force** | 로그인 3회 연속 실패 시 강제 연결 해제 및 동시 접속 수 제한(IP당 5개)을 수행합니다. |
-| **운영 보안** | **3-Step Warning** | 마스터 키 초기화 등 위험 작업 시 `1/3, 2/3, 3/3` 단계별 경고창을 통해 실수를 방지합니다. |
-| **무결성 유지** | **Auto-Keygen** | 마스터 키나 인증서 분실 시 시스템이 스스로 감지하여 보안 자산을 즉시 재생성합니다. |
+| **접속 제어** | **Anti-Brute Force** | 무단 접근 시도 시 강제 차단 및 동시 접속 제한(IP당 5개)을 수행합니다. |
+| **운영 보안** | **3-Step Warning** | 중요 자산(Key, Cert) 및 시스템 재시작 시 3단계 경고창으로 실수를 방지합니다. |
+| **무결성 유지** | **Auto-Keygen** | 보안 자산 분실 시 시스템이 스스로 감지하여 즉시 재생성을 시도합니다. |
 
 ---
 
-## ⏰ 지능형 자동화 (Intelligent Automation)
+## ⏰ 지능형 자동화 및 제어 (Automation & Control)
 
-*   **📅 KST 기반 재시작 스케줄러**: 한국 표준시(UTC+9) 기준 **매일 새벽 00:01**에 서버를 자동으로 재시작합니다.
-*   **📡 ip.pe.kr 고신뢰도 공인 IP 추적**: 국내 환경에 최적화된 `ip.pe.kr`과 PowerShell의 **`GetEmptyWebProxy()`** 엔진을 결합, 통신사/공유기 단의 프록시 간섭을 100% 차단하고 실제 공인 IP를 정확히 감지합니다.
-*   **🏠 ipconfig 기반 로컬 IP 정밀 감지**: 타 라이브러리의 불확실성을 배제하고 윈도우 표준 명령어(`ipconfig`)의 출력값을 직접 파싱하여, 현재 Wi-Fi나 유선 LAN에 할당된 실제 내부 주소를 오차 없이 추출합니다.
-*   **⏳ 듀얼 로딩 피드백 시스템**: 내부 IP와 공인 IP 모두 조회 시점에 "로딩 중..." 상태를 개별적으로 표시합니다. `update_idletasks` 기술을 통해 데이터 조회 전 UI 갱신을 강제하여 작업의 투명성을 확보했습니다.
-*   **♻️ 세션 자가 치유**: 네트워킹 오류 발생 시 서버가 스스로를 중지 후 재기동하여 항상 최상의 응답 속도를 유지합니다.
+*   **📅 KST 기반 재시작 스케줄러**: 한국 표준시(UTC+9) 기준 **매일 새벽 00:01**에 서버를 자동으로 재시작하여 안정성을 유지합니다.
+*   **♻️ 실시간 엔진 제어 도구**: 서버 구동 중에도 즉시 엔진만 재시작하거나, 애플리케이션 프로세스 자체를 재부팅하여 설정을 완벽히 반영할 수 있습니다.
+*   **📡 ip.pe.kr 고신뢰도 공인 IP 추적**: PowerShell의 **`GlobalProxySelection`** 기술을 통해 프록시 간섭을 차단하고 실제 공인 IP를 감지합니다.
+*   **🏠 ipconfig 기반 로컬 IP 정밀 감지**: 시스템 명령어를 직접 파싱하여 현재 활성화된 실제 네트워크 어댑터의 내부 주소를 정확히 추출합니다.
+*   **⏳ 듀얼 로딩 피드백 시스템**: 모든 IP 조회 과정에서 "로딩 중..." 상태를 표시하여 사용자에게 진행 상황을 투명하게 전달합니다.
 
 ---
 

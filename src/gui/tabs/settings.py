@@ -35,8 +35,24 @@ class SettingsTab(ttk.Frame):
             "매일 00시 01분(KST)에 서버를 자동으로 재시작합니다."
         )
         ttk.Label(sched_frame, text=sched_info).pack(side=tk.LEFT, padx=(0, 20))
-        
         ttk.Checkbutton(sched_frame, text="매일 00:01 (KST) 자동 재시작 활성화", variable=self.auto_restart).pack(side=tk.RIGHT)
+
+        # --- 서버 제어 도구 (Remote Control) ---
+        ctrl_frame = ttk.LabelFrame(container, text="🎮 실시간 서버 제어", padding=15)
+        ctrl_frame.pack(fill=tk.X, pady=10)
+
+        c_row1 = ttk.Frame(ctrl_frame); c_row1.pack(fill=tk.X, pady=5)
+        self.restart_now_btn = tk.Button(
+            c_row1, text="♻️ 즉시 서버 엔진 재시작", bg="#ffc107", 
+            command=self.confirm_immediate_restart, font=("Malgun Gothic", 9, "bold"), padx=10
+        )
+        self.restart_now_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+
+        self.reboot_app_btn = tk.Button(
+            c_row1, text="🔌 앱 종료 후 즉시 재실행 (서버 자동 가동)", bg="#fd7e14", fg="white",
+            command=self.confirm_app_reboot, font=("Malgun Gothic", 9, "bold"), padx=10
+        )
+        self.reboot_app_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
         # --- 위험 구역 (Critical Zone) ---
         danger_frame = ttk.LabelFrame(container, text="🚨 위험 구역 (Critical Zone)", padding=15)
@@ -169,3 +185,35 @@ class SettingsTab(ttk.Frame):
             messagebox.showinfo("완료", "SSL 인증서와 개인키가 새로 생성되었습니다.")
         except Exception as e:
             messagebox.showerror("오류", f"초기화 실패: {str(e)}")
+
+    def confirm_immediate_restart(self):
+        """3단계 확인 후 서버 엔진 즉시 재시작"""
+        if not messagebox.askokcancel("♻️ 1단계 확인", "지금 즉시 서버 엔진을 재시작하시겠습니까?\n현재 접속 중인 사용자의 연결이 끊어집니다."):
+            return
+        if not messagebox.askyesno("♻️ 2단계 확인", "재시작 중에는 잠시 서버 접근이 불가능합니다.\n진행할까요?"):
+            return
+        if not messagebox.askretrycancel("♻️ 3단계 최종 확인", "최종 확인입니다. [다시 시도] 클릭 시 즉시 재시작 로직이 수행됩니다."):
+            return
+        
+        self.server_tab.log("🔄 사용자 요청: 즉시 서버 엔진 재시작을 수행합니다.")
+        self._restart_logic()
+        messagebox.showinfo("완료", "서버 엔진 재시작 명령이 전달되었습니다.")
+
+    def confirm_app_reboot(self):
+        """3단계 확인 후 애플리케이션 프로세스 자체를 재시작"""
+        if not messagebox.askokcancel("🔌 1단계 확인", "애플리케이션을 완전히 종료하고 다시 실행하시겠습니까?\n이 과정에서 서버는 자동으로 다시 가동됩니다."):
+            return
+        if not messagebox.askyesno("🔌 2단계 확인", "모든 현재 설정이 저장된 후 프로세스가 교체됩니다.\n계속하시겠습니까?"):
+            return
+        if not messagebox.askretrycancel("🔌 3단계 최종 확인", "마지막 확인입니다. [다시 시도] 클릭 시 앱이 즉시 재시작됩니다."):
+            return
+        
+        import sys
+        import subprocess
+        
+        # 메인 윈도우 종료 루틴
+        self.server_tab.log("📢 시스템 재부팅: 앱을 재시작합니다...")
+        
+        # 현재 실행 파일(python.exe 또는 컴파일된 exe)과 인자들 확보
+        python = sys.executable
+        os.execl(python, python, *sys.argv)

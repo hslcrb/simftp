@@ -48,9 +48,9 @@ def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
     try:
         # 디렉토리가 없으면 생성
-        cert_dir = os.path.dirname(cert_path)
-        if cert_dir and not os.path.exists(cert_dir):
-            os.makedirs(cert_dir)
+        base_dir = os.path.dirname(cert_path)
+        if base_dir and not os.path.exists(base_dir):
+            os.makedirs(str(base_dir), exist_ok=True)
 
         k = crypto.PKey()
         k.generate_key(crypto.TYPE_RSA, 2048)
