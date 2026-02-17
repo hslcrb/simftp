@@ -93,12 +93,22 @@ erDiagram
 
 ## 프로젝트 상세 구조
 
-| 경로 | 구분 | 특징/목적 |
-| :---: | :---: | :--- |
-| `src/` | **Source** | 프로그램의 핵심 로직 및 GUI 구현체 |
-| `config/` | **Data** | **보안 민감 데이터** (사용자 정보, 암호화 키, SSL 인증서) |
-| `simftp_share/` | **Storage** | 기본 FTP 공유 루트 디렉토리 (자동 생성됨) |
-| `run.bat` | **Runner** | 윈도우 환경 전용 원클릭 실행 스크립트 |
+```text
+.
+├── config/                  # 보안 및 설정 데이터 저장소
+│   ├── server_config.json   # 서버 엔진 핵심 설정
+│   ├── users.json           # 사용자 계정 및 권한 데이터
+│   ├── master.key           # AES-256 양방향 암호화 키
+│   └── *.crt, *.key         # FTPS 통신용 SSL 인증서
+├── simftp_share/            # 기본 FTP 공유 루트 디렉토리
+├── src/                     # 애플리케이션 소스 코드
+│   ├── core/                # 핵심 로직 (ConfigManager, Utils)
+│   ├── gui/                 # 사용자 인터페이스 (Tabs, Windows)
+│   └── network/             # 네트워크 핸들러 및 서버 로직
+├── run.bat                  # Windows 원클릭 실행 스크립트
+├── run.sh                   # Linux/Mac 실행 스크립트
+└── requirements.txt         # 파이썬 의존성 패키지 목록
+```
 
 ---
 
