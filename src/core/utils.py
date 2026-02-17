@@ -16,26 +16,15 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """외부 인터넷 접속용 공인 IP 주소를 여러 경로를 통해 정확하게 확인합니다."""
-    services = [
-        'https://api.ipify.org', 
-        'https://ifconfig.me/ip', 
-        'https://checkip.amazonaws.com',
-        'https://ident.me',
-        'https://ipecho.net/plain'
-    ]
-    for service in services:
-        try:
-            # 캐시 방지 및 정확한 조회를 위해 User-Agent 설정
-            req = urllib.request.Request(service, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=3) as response:
-                ip = response.read().decode('utf-8').strip()
-                # 밸리데이션: IP 형식이 맞는지 간단히 체크 (숫자와 점)
-                if ip.replace('.', '').isdigit():
-                    return ip
-        except:
-            continue
-    return "확인 불가"
+    """외부 인터넷 접속용 공인 IP 주소를 ipify 서비스를 통해 확인합니다."""
+    try:
+        # 가장 신뢰할 수 있는 ipify 서비스 하나만 사용
+        req = urllib.request.Request('https://api.ipify.org', headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            ip = response.read().decode('utf-8').strip()
+            return ip
+    except Exception:
+        return "확인 불가"
 
 def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
