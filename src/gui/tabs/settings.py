@@ -119,12 +119,29 @@ class SettingsTab(ttk.Frame):
         self.reset_cert_btn.pack(fill=tk.X, pady=(15, 5))
         ttk.Label(danger_frame, text="※ 인증서 갱신이 필요하거나 개인키 유출이 의심될 때 사용하세요.", font=("Malgun Gothic", 8)).pack()
 
+        # --- 서버 엔진 정밀 설정 (New) ---
+        eng_frame = ttk.LabelFrame(container, text="⚙️ 서버 엔진 정밀 설정", padding=15)
+        eng_frame.pack(fill=tk.X, pady=10)
+        
+        e_row1 = ttk.Frame(eng_frame); e_row1.pack(fill=tk.X, pady=2)
+        ttk.Label(e_row1, text="최대 동시 접속:").pack(side=tk.LEFT)
+        self.max_cons = ttk.Entry(e_row1, width=8); self.max_cons.pack(side=tk.LEFT, padx=5)
+        self.max_cons.insert(0, str(self.config_manager.get_server_config().get('max_cons', 50)))
+        
+        ttk.Label(e_row1, text="IP당 최대 접속:").pack(side=tk.LEFT, padx=(15, 0))
+        self.max_per_ip = ttk.Entry(e_row1, width=8); self.max_per_ip.pack(side=tk.LEFT, padx=5)
+        self.max_per_ip.insert(0, str(self.config_manager.get_server_config().get('max_cons_per_ip', 5)))
+        
+        e_row2 = ttk.Frame(eng_frame); e_row2.pack(fill=tk.X, pady=5)
+        ttk.Label(e_row2, text="대기 타임아웃(초):").pack(side=tk.LEFT)
+        self.timeout = ttk.Entry(e_row2, width=8); self.timeout.pack(side=tk.LEFT, padx=5)
+        self.timeout.insert(0, str(self.config_manager.get_server_config().get('timeout', 300)))
+        
+        ttk.Button(e_row2, text="✅ 엔진 설정 저장", command=self.save_engine_settings).pack(side=tk.RIGHT)
+
         # --- 정보 영역 ---
         info_frame = ttk.LabelFrame(container, text="ℹ️ 시스템 정보", padding=15)
         info_frame.pack(fill=tk.X, pady=10)
-        
-        config_path = self.config_manager.config_dir
-        ttk.Label(info_frame, text=f"설정 저장 경로: {config_path}").pack(anchor=tk.W)
 
     def _start_scheduler(self):
         """백그라운드 스케줄러 스레드 시작"""
@@ -244,3 +261,17 @@ class SettingsTab(ttk.Frame):
         # 현재 실행 파일(python.exe 또는 컴파일된 exe)과 인자들 확보
         python = sys.executable
         os.execl(python, python, *sys.argv)
+
+    def save_engine_settings(self):
+        """엔진 설정값을 가져와 저장합니다."""
+        try:
+            m = int(self.max_cons.get())
+            p = int(self.max_per_ip.get())
+            t = int(self.timeout.get())
+            
+            cfg = self.config_manager.get_server_config()
+            cfg.update({"max_cons": m, "max_cons_per_ip": p, "timeout": t})
+            self.config_manager.save_server_config(cfg)
+            messagebox.showinfo("성공", "엔진 설정이 저장되었습니다.\n서버를 재시작하면 적용됩니다.")
+        except ValueError:
+            messagebox.showerror("오류", "숫자 형식이 올바르지 않습니다.")

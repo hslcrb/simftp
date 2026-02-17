@@ -395,10 +395,11 @@ class ServerTab(ttk.Frame):
             # NAT/외부 접속을 위한 패시브 포트 설정 (60000-60100)
             h.passive_ports = range(60000, 60101)
             
-            # 보안 강화: 초당 접속 제한 및 타임아웃 설정
-            h.timeout = 300
-            h.banner = "simftp ready."
+            # [서버 엔진 정밀 설정 반영]
+            s_cfg = self.config_manager.get_server_config()
+            h.timeout = s_cfg.get('timeout', 300)
             h.max_login_attempts = 3
+            h.banner = "simftp ready."
             
             # NAT 지원 설정 (외부 접속 가능케 함)
             if self.use_nat.get():
@@ -429,9 +430,10 @@ class ServerTab(ttk.Frame):
 
             h.authorizer = auth
             self.server = CustomFTPServer(("0.0.0.0", port), h, self)
-            # 서버 전체 동시 접속 제한
-            self.server.max_cons = 50
-            self.server.max_cons_per_ip = 5
+            
+            # [접속 제한 설정 반영]
+            self.server.max_cons = s_cfg.get('max_cons', 50)
+            self.server.max_cons_per_ip = s_cfg.get('max_cons_per_ip', 5)
             self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.server_thread.start()
             self.update_ui_state(True) # Call to update UI state
