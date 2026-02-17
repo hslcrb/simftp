@@ -14,5 +14,4 @@ set PYTHONUTF8=1
 pip install -r requirements.txt --quiet
 
 echo [System] Starting SimpleFTP Pro...
-python src/main.py
-pause
+start "" "pythonw" "src/main.py"
