@@ -105,14 +105,13 @@ class ServerTab(ttk.Frame):
         ttk.Label(row1, text=" / ").pack(side=tk.LEFT)
         
         from core.utils import get_public_ip
-        self.pub_ip_entry = ttk.Entry(row1, width=15, foreground="red", font=("Consolas", 10, "bold"))
-        self.pub_ip_entry.pack(side=tk.LEFT)
-        self.pub_ip_entry.insert(0, "조회 중...")
+        self.pub_ip_label = ttk.Label(row1, text="조회 중...", foreground="red", font=("Consolas", 10, "bold"))
+        self.pub_ip_label.pack(side=tk.LEFT)
         
-        # 별도 스레드에서 공인 IP 조회 후 입력
+        # 별도 스레드에서 공인 IP 조회 후 UI 갱신
         def update_pub_ip():
             pip = get_public_ip()
-            self.root.after(0, lambda: self._set_pub_ip(pip))
+            self.after(0, lambda: self._update_pub_ip_ui(pip))
         threading.Thread(target=update_pub_ip, daemon=True).start()
 
         row2 = ttk.Frame(cfg_frame); row2.pack(fill=tk.X, pady=2)
@@ -200,9 +199,9 @@ class ServerTab(ttk.Frame):
         for p, v in self.p_vars.items(): v.set(p in u['perms'])
         self.save_btn.config(text="💾 변경사항 업데이트")
 
-    def _set_pub_ip(self, ip):
-        self.pub_ip_entry.delete(0, tk.END)
-        self.pub_ip_entry.insert(0, ip)
+    def _update_pub_ip_ui(self, ip):
+        """공인 IP 라벨 텍스트를 업데이트합니다."""
+        self.pub_ip_label.config(text=ip)
 
     def _on_new_user(self):
         self.editing_index = None
@@ -308,14 +307,17 @@ class ServerTab(ttk.Frame):
             
             # NAT 지원 설정 (외부 접속 가능케 함)
             if self.use_nat.get():
-                # UI에 입력된 공인 IP 사용 (오감지 시 사용자가 수동 수정한 값 반영)
-                pip = self.pub_ip_entry.get().strip()
-                if pip and pip != "확인 불가" and pip != "조회 중...":
+                from core.utils import get_public_ip
+                # 서버 시작 시점에 실시간으로 공인 IP를 다시 불러옴 (매우 중요)
+                pip = get_public_ip()
+                self.after(0, lambda: self._update_pub_ip_ui(pip))
+                
+                if pip and pip != "확인 불가":
                     h.masquerade_address = pip
                     self.log(f"🌐 NAT 모드 활성화: 외부 IP {pip}로 응답합니다.")
                     self.log(f"📋 알림: 공유기에서 60000-60100 포트(TCP)도 열어주어야 원활합니다.")
                 else:
-                    self.log("⚠️ 경고: 공인 IP가 설정되지 않아 외부 접속이 원활하지 않을 수 있습니다.")
+                    self.log("⚠️ 경고: 공인 IP를 확인할 수 없어 외부 접속이 제한될 수 있습니다.")
 
             h.authorizer = auth
             self.server = FTPServer(("0.0.0.0", port), h)
