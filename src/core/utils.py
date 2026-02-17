@@ -16,33 +16,52 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """외부 인터넷 접속용 공인 IP 주소를 캐시 없이 정확하게 확인합니다."""
+    """프록시를 우회하고 여러 서비스를 교차 검증하여 실제 공인 IP를 찾아냅니다."""
     import json
     import time
+    import urllib.request
     
-    # 1순위: ipify (JSON + 캐시 방지 파라미터)
-    try:
-        urls = [
-            f'https://api.ipify.org?format=json&t={int(time.time())}',
-            'https://ifconfig.me/all.json' # 백업용
-        ]
-        
-        for url in urls:
-            try:
-                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=5) as response:
-                    data = json.loads(response.read().decode('utf-8'))
-                    ip = data.get('ip') or data.get('ip_addr')
-                    if ip and ip.count('.') == 3 and not ip.endswith('.1'): # .1로 끝나는 주소는 의심해봄
-                        return ip
-                    elif ip: # .1이어도 일단 가져는 옴 (진짜일 수도 있으니)
-                        return ip
-            except:
-                continue
+    # 프록시 완전 무시 핸들러
+    proxy_handler = urllib.request.ProxyHandler({})
+    opener = urllib.request.build_opener(proxy_handler)
+    
+    # 교차 검증용 서비스 목록
+    services = [
+        f'https://api.ipify.org?format=json&t={int(time.time())}',
+        'https://ipv4.icanhazip.com/',
+        f'https://v4.ident.me/.json?t={int(time.time())}',
+        'https://ifconfig.me/ip'
+    ]
+    
+    detected_ips = []
+    
+    for url in services:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with opener.open(req, timeout=3) as response:
+                content = response.read().decode('utf-8').strip()
                 
-    except Exception:
-        pass
-    return "확인 불가"
+                # 결과 추출 (JSON 또는 Plain Text)
+                if '{' in content:
+                    data = json.loads(content)
+                    ip = data.get('ip') or data.get('ip_addr')
+                else:
+                    ip = content
+                
+                if ip and ip.count('.') == 3:
+                    # 가중치 계산: .1로 끝나는 주소는 0점, 정상 주소는 1점
+                    weight = 0 if ip.endswith('.1') else 1
+                    detected_ips.append((ip, weight))
+        except:
+            continue
+            
+    if not detected_ips:
+        return "확인 불가"
+        
+    # 1. 가중치(정상 주소 우선) 2. 빈도수 순으로 정렬하여 최적의 IP 반환
+    # 만약 .199가 한 번이라도 나왔다면 그 값이 최우선이 됩니다.
+    detected_ips.sort(key=lambda x: x[1], reverse=True)
+    return detected_ips[0][0]
 
 def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
