@@ -469,7 +469,9 @@ class ServerTab(ttk.Frame):
                     self.after(0, lambda: [self.ip_display.config(text=lip), self._update_pub_ip_ui(pip)])
                     
                     if pip and pip != "확인 불가":
-                        h.masquerade_address = pip
+                        # 실행 중인 서버 인스턴스의 핸들러 설정 업데이트
+                        if self.server and self.server.handler:
+                            self.server.handler.masquerade_address = pip
                         self.log(f"🌐 [네트워크] NAT 모드 활성화: 외부 IP {pip}로 응답합니다.")
                     else:
                         self.log("⚠️ [네트워크] 경고: 공인 IP를 확인할 수 없어 외부 접속이 제한될 수 있습니다.")
