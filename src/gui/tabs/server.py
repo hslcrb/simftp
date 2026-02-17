@@ -265,6 +265,27 @@ class ServerTab(ttk.Frame):
                 self.e_home.delete(0, tk.END)
                 self.e_home.insert(0, suggested)
 
+    def _update_stop_btn_state(self):
+        """3개 체크박스 확인 후 중단 버튼 활성화/색상 변경"""
+        if all(v.get() for v in self.stop_vars):
+            self.stop_btn.config(state=tk.NORMAL, bg="#dc3545", fg="white")
+        else:
+            self.stop_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
+
+    def _update_restart_btn_state(self):
+        """3개 체크박스 확인 후 재시작 버튼 활성화/색상 변경"""
+        if all(v.get() for v in self.restart_vars):
+            self.restart_btn.config(state=tk.NORMAL, bg="#ffc107", fg="black")
+        else:
+            self.restart_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
+
+    def _on_restart_server(self):
+        """서버 엔진 재시작 로직 (체크박스 초기화 포함)"""
+        self.stop_server()
+        self.after(1500, self.start_server)
+        for v in self.restart_vars: v.set(False)
+        self._update_restart_btn_state()
+
     def _on_tree_edit(self):
         sel = self.tree.selection()
         if not sel: return
