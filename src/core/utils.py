@@ -16,15 +16,33 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """외부 인터넷 접속용 공인 IP 주소를 ipify 서비스를 통해 확인합니다."""
+    """외부 인터넷 접속용 공인 IP 주소를 캐시 없이 정확하게 확인합니다."""
+    import json
+    import time
+    
+    # 1순위: ipify (JSON + 캐시 방지 파라미터)
     try:
-        # 가장 신뢰할 수 있는 ipify 서비스 하나만 사용
-        req = urllib.request.Request('https://api.ipify.org', headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            ip = response.read().decode('utf-8').strip()
-            return ip
+        urls = [
+            f'https://api.ipify.org?format=json&t={int(time.time())}',
+            'https://ifconfig.me/all.json' # 백업용
+        ]
+        
+        for url in urls:
+            try:
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                    ip = data.get('ip') or data.get('ip_addr')
+                    if ip and ip.count('.') == 3 and not ip.endswith('.1'): # .1로 끝나는 주소는 의심해봄
+                        return ip
+                    elif ip: # .1이어도 일단 가져는 옴 (진짜일 수도 있으니)
+                        return ip
+            except:
+                continue
+                
     except Exception:
-        return "확인 불가"
+        pass
+    return "확인 불가"
 
 def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
