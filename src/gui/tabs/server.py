@@ -223,7 +223,13 @@ class ServerTab(ttk.Frame):
         e_row2 = ttk.Frame(self.ed_frame); e_row2.pack(fill=tk.X, pady=2)
         ttk.Label(e_row2, text="전용폴더:").pack(side=tk.LEFT)
         self.e_home = ttk.Entry(e_row2); self.e_home.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-        ttk.Button(e_row2, text="📁", width=3, command=self._browse_user_home).pack(side=tk.LEFT)
+        self.home_browse_btn = ttk.Button(e_row2, text="📁", width=3, command=self._browse_user_home)
+        self.home_browse_btn.pack(side=tk.LEFT)
+        
+        self.use_default_home = tk.BooleanVar(value=True)
+        self.home_check = ttk.Checkbutton(e_row2, text="서버 루트 사용 (기본)", variable=self.use_default_home, 
+                                          command=self._toggle_home_edit)
+        self.home_check.pack(side=tk.LEFT, padx=(5, 0))
 
         self.perm_box = ttk.LabelFrame(self.ed_frame, text="권한", padding=5)
         self.perm_box.pack(fill=tk.X, pady=5)
@@ -274,13 +280,29 @@ class ServerTab(ttk.Frame):
         self.e_id.config(state=tk.NORMAL)
         self.e_id.delete(0, tk.END); self.e_id.insert(0, u['username'])
         
-        # 보안 토큰(master.key)을 사용하여 복호화 후 표시 (이제 보기 버튼 작동)
         raw_pw = decrypt_password(u['password'])
         self.e_pw.delete(0, tk.END); self.e_pw.insert(0, raw_pw)
         
-        self.e_home.delete(0, tk.END); self.e_home.insert(0, u['home_dir'])
+        home_val = u['home_dir']
+        self.e_home.delete(0, tk.END); self.e_home.insert(0, home_val if home_val else self.config['root_dir'])
+        
+        # 홈 디렉토리가 비어있으면(상속) 체크박스 활성화
+        self.use_default_home.set(home_val == "")
+        self._toggle_home_edit()
+
         for p, v in self.p_vars.items(): v.set(p in u['perms'])
         self.save_btn.config(text="💾 변경사항 업데이트")
+
+    def _toggle_home_edit(self):
+        """체크박스 상태에 따라 전용폴더 편집 가능 여부 토글"""
+        if self.use_default_home.get():
+            self.e_home.delete(0, tk.END)
+            self.e_home.insert(0, self.root_entry.get())
+            self.e_home.config(state=tk.DISABLED)
+            self.home_browse_btn.config(state=tk.DISABLED)
+        else:
+            self.e_home.config(state=tk.NORMAL)
+            self.home_browse_btn.config(state=tk.NORMAL)
 
     def _update_pub_ip_ui(self, ip):
         """공인 IP 라벨 텍스트를 업데이트합니다."""
@@ -289,13 +311,17 @@ class ServerTab(ttk.Frame):
     def _on_new_user(self):
         self.editing_index = None
         self.e_id.config(state=tk.NORMAL); self.e_id.delete(0, tk.END); self.e_pw.delete(0, tk.END)
-        self.e_home.delete(0, tk.END); self.e_home.insert(0, self.root_entry.get())
+        self.use_default_home.set(True)
+        self._toggle_home_edit()
         for v in self.p_vars.values(): v.set(True)
         self.save_btn.config(text="💾 신규 추가")
     def _on_save_user(self):
-        uid, pw, home = self.e_id.get().strip(), self.e_pw.get(), self.e_home.get().strip()
+        uid, pw = self.e_id.get().strip(), self.e_pw.get()
+        home = self.e_home.get().strip()
         perms = "".join([p for p, v in self.p_vars.items() if v.get()])
-        if not uid or not pw or not home: return
+        if not uid or not pw: return
+        # 서버 루트 사용이 체크되어 있으면 home은 필수 아님 (내부적으로 "" 처리)
+        if not self.use_default_home.get() and not home: return
 
         # 중복 체크 (편집 중인 본인은 제외)
         for i, u in enumerate(self.users):
@@ -303,9 +329,12 @@ class ServerTab(ttk.Frame):
                 messagebox.showerror("오류", "이미 존재하는 아이디입니다.")
                 return
 
-        # [지능형 경로 관리] 서버 루트 하위 경로라면 상대 경로로 변환하여 저장
-        root = os.path.normpath(self.root_entry.get())
-        home_abs = os.path.normpath(home)
+        if self.use_default_home.get():
+            save_path = ""
+        else:
+            # [지능형 경로 관리] 서버 루트 하위 경로라면 상대 경로로 변환하여 저장
+            root = os.path.normpath(self.root_entry.get())
+            home_abs = os.path.normpath(home)
         
         try:
             if os.path.commonpath([root, home_abs]) == root:
