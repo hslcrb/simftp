@@ -27,34 +27,22 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """여러 서비스를 통해 프록시 간섭 없이 가장 정확한 공인 IP를 조회합니다."""
+    """ip.pe.kr 서비스를 통해 프록시 간섭 없이 실시간 공인 IP를 조회합니다."""
     import subprocess
-    # 신뢰할 수 있는 여러 IP 조회 서비스 목록
-    services = [
-        "https://api.ipify.org",
-        "https://ifconfig.me/ip",
-        "https://checkip.amazonaws.com",
-        "https://api.my-ip.io/ip"
-    ]
-    
-    for service in services:
-        try:
-            # PowerShell을 사용하여 시스템 프록시를 완전히 무력화하고 조회
-            ps_script = f"$ProgressPreference = 'SilentlyContinue'; [System.Net.WebRequest]::DefaultWebProxy = $null; Invoke-RestMethod -Uri '{service}'"
-            cmd = ['powershell', '-Command', ps_script]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, shell=True)
-            
-            ip = result.stdout.strip()
-            # IP 형식(4개 옥텟) 검증 및 '가짜' 주소(.1)가 아닌 실제 주소 응답을 기다림
-            if ip and ip.count('.') == 3:
-                # 브라우저와 동일한 결과를 얻기 위해 .1로 끝나는 의심스러운 경로는 후순위로 미룸 (사용자 요청 반영)
-                if not ip.endswith('.1'):
-                    return ip
-                last_res = ip # .1이라도 일단 저장
-        except:
-            continue
-    
-    return last_res if 'last_res' in locals() else "확인 불가"
+    try:
+        # PowerShell을 사용하여 시스템 프록시를 완전히 무력화하고 조회
+        # ip.pe.kr은 국내 네트워크 환경에서 가장 정확한 결과를 제공합니다.
+        ps_script = "$ProgressPreference = 'SilentlyContinue'; [System.Net.WebRequest]::DefaultWebProxy = $null; Invoke-RestMethod -Uri 'https://api.ip.pe.kr/'"
+        cmd = ['powershell', '-Command', ps_script]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, shell=True)
+        
+        ip = result.stdout.strip()
+        # IP 형식(4개 옥텟) 검증
+        if ip and ip.count('.') == 3:
+            return ip
+    except Exception:
+        pass
+    return "확인 불가"
 
 def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
