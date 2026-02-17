@@ -16,32 +16,21 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """외부 인터넷 접속용 공인 IP 주소를 모든 캐시와 프록시를 무시하고 실시간 조회합니다."""
-    import urllib.request
-    import json
-    import time
-    import os
-    
-    # 시스템에 설정된 모든 프록시 환경 변수 무력화
-    for env_var in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'no_proxy', 'NO_PROXY']:
-        if env_var in os.environ:
-            del os.environ[env_var]
-    os.environ['no_proxy'] = '*'
-
+    """시스템 내장 curl 명령어를 사용하여 프록시 간섭 없이 실시간 공인 IP를 조회합니다."""
+    import subprocess
     try:
-        # 캐시 방지를 위한 타임스탬프와 JSON 포맷 강제
-        url = f'https://api.ipify.org?format=json&t={int(time.time())}'
+        # 시스템 프록시를 무회하는 --noproxy 옵션과 함께 curl 호출
+        # 터미널에서 실행하는 것과 동일한 네트워크 경로를 보장합니다.
+        cmd = ['curl', '-s', '--noproxy', '*', 'https://api.ipify.org']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, shell=True)
         
-        # 프록시 없는 순수 연결 핸들러 생성
-        proxy_handler = urllib.request.ProxyHandler({})
-        opener = urllib.request.build_opener(proxy_handler)
-        
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with opener.open(req, timeout=5) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            return data.get('ip', '확인 불가')
+        ip = result.stdout.strip()
+        # 기본적인 IP 형식 검증만 수행 (하드코딩 필터링 없음)
+        if ip and ip.count('.') == 3:
+            return ip
     except Exception:
-        return "확인 불가"
+        pass
+    return "확인 불가"
 
 def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
