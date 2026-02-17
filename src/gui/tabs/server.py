@@ -3,7 +3,7 @@ from tkinter import ttk, messagebox, filedialog, scrolledtext
 import os
 import threading
 from datetime import datetime
-from pyftpdlib.authorizers import DummyAuthorizer
+from pyftpdlib.authorizers import DummyAuthorizer, AuthenticationFailed
 from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
 from pyftpdlib.servers import FTPServer
 from core.utils import get_local_ip, generate_ssl_cert, hash_password, verify_password, encrypt_password, decrypt_password
@@ -28,9 +28,14 @@ class HashedAuthorizer(DummyAuthorizer):
     """암호화된 비밀번호를 복호화하여 검증하는 사용자 인증 매니저"""
     def validate_authentication(self, username, password, handler):
         if not self.has_user(username):
-            return False
-        stored_pw = self.user_table[username]['password']
-        return decrypt_password(stored_pw) == password
+            raise AuthenticationFailed
+        
+        # pyftpdlib의 DummyAuthorizer는 비밀번호를 'pwd' 키에 저장합니다.
+        stored_pw = self.user_table[username]['pwd']
+        
+        # 복호화된 비번과 입력된 비번 비교
+        if decrypt_password(stored_pw) != password:
+            raise AuthenticationFailed
 
 class ServerTab(ttk.Frame):
     """모듈화된 FTP 서버 제어 탭"""
