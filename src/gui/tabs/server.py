@@ -7,6 +7,22 @@ from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
 from pyftpdlib.servers import FTPServer
 from core.utils import get_local_ip, generate_ssl_cert, hash_password, verify_password, encrypt_password, decrypt_password
+import logging
+
+class GuiLogHandler(logging.Handler):
+    """로깅 이벤트를 GUI 위젯으로 전달하는 핸들러"""
+    def __init__(self, log_func):
+        super().__init__()
+        self.log_func = log_func
+        self.setFormatter(logging.Formatter('%(message)s'))
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            # 메인 스레드에서 UI를 업데이트하도록 스케줄링
+            self.log_func(msg)
+        except Exception:
+            self.handleError(record)
 
 class HashedAuthorizer(DummyAuthorizer):
     """암호화된 비밀번호를 복호화하여 검증하는 사용자 인증 매니저"""
@@ -223,10 +239,29 @@ class ServerTab(ttk.Frame):
 
     def log(self, msg):
         ts = datetime.now().strftime("%H:%M:%S")
-        self.log_text.config(state=tk.NORMAL); self.log_text.insert(tk.END, f"[{ts}] {msg}\n")
-        self.log_text.see(tk.END); self.log_text.config(state=tk.DISABLED)
+        if self.log_text:
+            self.log_text.config(state=tk.NORMAL)
+            self.log_text.insert(tk.END, f"[{ts}] {msg}\n")
+            self.log_text.see(tk.END)
+            self.log_text.config(state=tk.DISABLED)
+
+    def _setup_logging(self):
+        """pyftpdlib의 로그를 UI로 리다이렉트 설정"""
+        logger = logging.getLogger('pyftpdlib')
+        logger.setLevel(logging.INFO)
+        
+        # 기존 핸들러 제거 후 GUI 핸들러 추가
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+            
+        gui_handler = GuiLogHandler(self.log)
+        logger.addHandler(gui_handler)
+        
+        # 기본 로깅 레벨 설정 (터미널 출력과 동일하게 보장)
+        logging.basicConfig(level=logging.INFO)
 
     def start_server(self):
+        self._setup_logging() # 서버 시작 시 로깅 리다이렉트 재설정
         port = int(self.port_entry.get()); root = self.root_entry.get()
         self.config.update({"port": port, "root_dir": root, "allow_anonymous": self.allow_anonymous.get(), "use_ftps": self.use_ftps.get()})
         self.config_manager.save_server_config(self.config)
