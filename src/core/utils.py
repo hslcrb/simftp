@@ -16,14 +16,17 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """외부 인터넷 접속용 공인 IP 주소를 ipify 서비스를 통해 확인합니다."""
+    """외부 인터넷 접속용 공인 IP 주소를 모든 프록시를 우회하여 확인합니다."""
     import urllib.request
+    import os
     try:
-        # 프록시 설정을 무시하고 직접 연결 (오감지 방지)
+        # 시스템 환경 변수의 프록시 설정(HTTP_PROXY 등)을 완전히 무시
         proxy_handler = urllib.request.ProxyHandler({})
         opener = urllib.request.build_opener(proxy_handler)
+        urllib.request.install_opener(opener)
         
         req = urllib.request.Request('https://api.ipify.org', headers={'User-Agent': 'Mozilla/5.0'})
+        # 환경 변수를 무시하고 직접 연결하기 위해 context를 미사용하거나 기본값으로 설정
         with opener.open(req, timeout=5) as response:
             return response.read().decode('utf-8').strip()
     except Exception:
