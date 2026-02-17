@@ -30,11 +30,37 @@ class ConfigManager:
         with open(self.paths[key], 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
-    def get_server_config(self): return self._load('server')
+    def get_server_config(self):
+        config = self._load('server')
+        # 기본값 설정
+        if not config:
+            config = {
+                "port": 14729,
+                "root_dir": os.path.join(self.root_dir, "simftp_share"),
+                "use_nat": True,
+                "allow_anonymous": False,
+                "use_ftps": False
+            }
+            self.save_server_config(config)
+        return config
+
     def save_server_config(self, config): self._save('server', config)
+    
     def get_users(self): return self._load('users')
     def save_users(self, users): self._save('users', users)
-    def get_client_config(self): return self._load('client')
+    
+    def get_client_config(self):
+        config = self._load('client')
+        if not config:
+            config = {
+                "last_host": "127.0.0.1",
+                "last_port": 14729,
+                "last_user": "anonymous",
+                "use_ftps": False
+            }
+            self.save_client_config(config)
+        return config
+
     def save_client_config(self, config): self._save('client', config)
     
     # 인증서 경로 가져오기
