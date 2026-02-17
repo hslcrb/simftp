@@ -19,8 +19,17 @@ class GuiLogHandler(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            # 메인 스레드에서 UI를 업데이트하도록 스케줄링
-            self.log_func(msg)
+            # 불필요한 중복 로그 필터링 및 한글화
+            if "USER" in msg and "logged in" in msg: return # CustomHandler에서 처리
+            if "FTP session opened" in msg:
+                # IP만 추출하여 간단히 표시
+                conn_info = msg.split('-')[0].strip()
+                self.log_func(f"🔌 [연결 시도] {conn_info}")
+                return
+            if "FTP session closed" in msg: return # CustomHandler에서 처리
+            
+            # 기타 중요 로그 전달
+            self.log_func(f"💬 {msg}")
         except Exception:
             self.handleError(record)
 
@@ -30,12 +39,41 @@ class HashedAuthorizer(DummyAuthorizer):
         if not self.has_user(username):
             raise AuthenticationFailed
         
-        # pyftpdlib의 DummyAuthorizer는 비밀번호를 'pwd' 키에 저장합니다.
         stored_pw = self.user_table[username]['pwd']
-        
-        # 복호화된 비번과 입력된 비번 비교
         if decrypt_password(stored_pw) != password:
             raise AuthenticationFailed
+
+class CustomFTPServer(FTPServer):
+    """서버 인스턴스에 탭 참조를 저장하기 위한 커스텀 서버 클래스"""
+    def __init__(self, address_tuple, handler_class, tab_instance):
+        super().__init__(address_tuple, handler_class)
+        self.tab = tab_instance
+
+class CustomFTPHandler(TLS_FTPHandler):
+    """전송 및 변경 사항을 상세하게 로깅하는 커스텀 핸들러"""
+    def on_login(self, username):
+        self.server.tab.log(f"🔑 [접속] '{username}' 사용자가 로그인했습니다.")
+
+    def on_logout(self, username):
+        self.server.tab.log(f"👋 [종료] '{username}' 사용자가 접속을 종료했습니다.")
+
+    def on_file_sent(self, file):
+        self.server.tab.log(f"📤 [다운로드 완료] '{os.path.basename(file)}' 파일 전송 성공")
+
+    def on_file_received(self, file):
+        self.server.tab.log(f"📥 [업로드 완료] '{os.path.basename(file)}' 파일 수신 성공")
+
+    def on_mkdir(self, path):
+        self.server.tab.log(f"📁 [폴더 생성] '{os.path.basename(path)}' 폴더가 생성되었습니다.")
+
+    def on_rmdir(self, path):
+        self.server.tab.log(f"🗑️ [폴더 삭제] '{os.path.basename(path)}' 폴더가 제거되었습니다.")
+
+    def on_delete(self, path):
+        self.server.tab.log(f"🗑️ [파일 삭제] '{os.path.basename(path)}' 파일이 제거되었습니다.")
+
+    def on_incomplete_file_received(self, file):
+        self.server.tab.log(f"⚠️ [업로드 중단] '{os.path.basename(file)}' 수신이 완료되지 않았습니다.")
 
 class ServerTab(ttk.Frame):
     """모듈화된 FTP 서버 제어 탭"""
@@ -273,13 +311,15 @@ class ServerTab(ttk.Frame):
         for i in self.tree.get_children(): self.tree.delete(i)
         for u in self.users: self.tree.insert("", tk.END, text=f"👤 {u['username']}", values=(u['perms'], u['home_dir']))
 
-    def log(self, msg):
-        ts = datetime.now().strftime("%H:%M:%S")
-        if self.log_text:
-            self.log_text.config(state=tk.NORMAL)
-            self.log_text.insert(tk.END, f"[{ts}] {msg}\n")
-            self.log_text.see(tk.END)
-            self.log_text.config(state=tk.DISABLED)
+    def log(self, message):
+        """로그 텍스트 영역에 시간과 함께 메시지 추가"""
+        if not self.log_text: return
+        
+        timestamp = datetime.now().strftime("[%H:%M:%S]")
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.insert(tk.END, f"{timestamp} {message}\n")
+        self.log_text.see(tk.END)
+        self.log_text.config(state=tk.DISABLED)
 
     def _setup_logging(self):
         """pyftpdlib의 로그를 UI로 리다이렉트 설정"""
@@ -319,9 +359,9 @@ class ServerTab(ttk.Frame):
                     if not success:
                         self.log("❌ 오류: 보안 인증서(SSL) 생성에 실패했습니다. pyopenssl 설치 여부를 확인하세요.")
                         return
-                h = TLS_FTPHandler; h.certfile = cp; h.keyfile = kp
+                h = CustomFTPHandler; h.certfile = cp; h.keyfile = kp
                 h.tls_control_conn = True; h.tls_data_conn = True
-            else: h = FTPHandler
+            else: h = CustomFTPHandler
             
             # NAT/외부 접속을 위한 패시브 포트 설정 (60000-60100)
             h.passive_ports = range(60000, 60101)
@@ -347,9 +387,9 @@ class ServerTab(ttk.Frame):
                     
                     if pip and pip != "확인 불가":
                         h.masquerade_address = pip
-                        self.log(f"🌐 NAT 모드 활성화: 외부 IP {pip}로 응답합니다.")
+                        self.log(f"🌐 [네트워크] NAT 모드 활성화: 외부 IP {pip}로 응답합니다.")
                     else:
-                        self.log("⚠️ 경고: 공인 IP를 확인할 수 없어 외부 접속이 제한될 수 있습니다.")
+                        self.log("⚠️ [네트워크] 경고: 공인 IP를 확인할 수 없어 외부 접속이 제한될 수 있습니다.")
                 
                 # IP 조회는 네트워크를 타므로 별도 스레드에서 수행 (UI 프리징 방지)
                 ip_thread = threading.Thread(target=_async_nat_setup, daemon=True)
@@ -359,14 +399,19 @@ class ServerTab(ttk.Frame):
                 # 비동기 완료 후 적용되는 로직이 필요할 수 있으나 여기서는 단순화함
 
             h.authorizer = auth
-            self.server = FTPServer(("0.0.0.0", port), h)
+            self.server = CustomFTPServer(("0.0.0.0", port), h, self)
             # 서버 전체 동시 접속 제한
             self.server.max_cons = 50
             self.server.max_cons_per_ip = 5
             self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.server_thread.start()
             self.update_ui_state(True) # Call to update UI state
-            self.log(f"서버 활성화 (포트: {port})")
+            self.log(f"🚀 [서버 가동] 포트 {port}에서 서비스를 시작합니다.")
+            
+            # 경로 안내 로그 추가
+            self.log(f"📂 [공유 폴더] 기본 경로: {root}")
+            for u in self.users:
+                self.log(f"👤 [사용자] {u['username']} -> {u['home_dir']}")
         except Exception as e: self.log(f"오류: {e}")
 
     def stop_server(self):
