@@ -59,7 +59,7 @@ sequenceDiagram
     simftp-->>Client: 220 simftp ready (접속 성공)
 
     Note over Client, simftp: 🟢 Phase 2: 지능형 IP 추적 및 데이터 채널
-    simftp->>SK_Router: ipify API 호출 (현재 실시간 공인 IP 확인)
+    simftp->>SK_Router: ip.pe.kr API 호출 (프록시 무력화 PowerShell 엔진)
     SK_Router-->>simftp: "현재 당신의 IP는 .199입니다"
     simftp->>Client: "데이터 전송을 위해 60000-60100 포트를 여세요"
     Client->>SK_Router: 데이터 채널 접속 시도
@@ -84,8 +84,9 @@ sequenceDiagram
 ## ⏰ 지능형 자동화 (Intelligent Automation)
 
 *   **📅 KST 기반 재시작 스케줄러**: 한국 표준시(UTC+9) 기준 **매일 새벽 00:01**에 서버를 자동으로 재시작합니다.
-*   **📡 ip.pe.kr 기반 고신뢰도 IP 조회**: 국내 네트워크 환경에 최적화된 `ip.pe.kr` 서비스와 PowerShell의 Proxy 무력화 기술을 결합하여, 복잡한 프록시 환경에서도 실제 공인 IP를 정확히 추적합니다.
-*   **⏳ 시각적 상태 피드백**: IP 조회 시 "로딩 중..." 상태를 명시적으로 표시하고 `update_idletasks` 제어를 통해 사용자에게 실시간 작업 상태를 완벽하게 전달합니다.
+*   **📡 ip.pe.kr 고신뢰도 공인 IP 추적**: 국내 환경에 최적화된 `ip.pe.kr`과 PowerShell의 **`GetEmptyWebProxy()`** 엔진을 결합, 통신사/공유기 단의 프록시 간섭을 100% 차단하고 실제 공인 IP를 정확히 감지합니다.
+*   **🏠 ipconfig 기반 로컬 IP 자동 탐지**: 파이썬 라이브러리의 불확실성을 배제하고 시스템 명령어(`ipconfig`)를 직접 실행하여 현재 활성화된 실제 네트워크 어댑터의 내부 주소를 정확히 추출합니다.
+*   **⏳ 실시간 시각적 상태 피드백**: 모든 IP 조회 과정에서 "로딩 중..." 상태를 표시하고 `update_idletasks` 강제 업데이트를 통해 사용자에게 작업 진행 상황을 투명하게 전달합니다.
 *   **♻️ 세션 자가 치유**: 네트워킹 오류 발생 시 서버가 스스로를 중지 후 재기동하여 항상 최상의 응답 속도를 유지합니다.
 
 ---
