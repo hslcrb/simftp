@@ -71,73 +71,66 @@ class ServerTab(ttk.Frame):
         self.refresh_users_tree()
 
     def _setup_ui(self):
-        # 레이아웃 분리 (설정 + 리스트 / 편집기 + 로그)
         paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        left = ttk.Frame(paned); paned.add(left, weight=2)
-        right = ttk.Frame(paned); paned.add(right, weight=3)
+        # 좌측 영역(설정/목록)의 가중치를 높여 너비 확보 (weight 2->3으로 상향 조정)
+        left = ttk.Frame(paned); paned.add(left, weight=3)
+        right = ttk.Frame(paned); paned.add(right, weight=4)
 
         # --- 왼쪽: 설정 및 목록 ---
-        cfg_frame = ttk.LabelFrame(left, text="⚙️ 서버 설정", padding=10)
+        cfg_frame = ttk.LabelFrame(left, text="⚙️ 핵심 서버 설정", padding=15)
         cfg_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        row1 = ttk.Frame(cfg_frame); row1.pack(fill=tk.X, pady=2)
-        ttk.Label(row1, text="포트:").pack(side=tk.LEFT)
-        self.port_entry = ttk.Entry(row1, width=8, state="readonly")
-        self.port_entry.pack(side=tk.LEFT, padx=5)
+        # [행 1] 포트 및 네트워크 상태 정보
+        net_row = ttk.Frame(cfg_frame); net_row.pack(fill=tk.X, pady=(0, 10))
         
-        # readonly 상태에서 값을 넣기 위해 일시적으로 해제 후 입력
+        # 포트 설정 그룹
+        port_group = ttk.Frame(net_row)
+        port_group.pack(side=tk.LEFT)
+        ttk.Label(port_group, text="서비스 포트:", font=("Malgun Gothic", 9, "bold")).pack(side=tk.LEFT)
+        self.port_entry = ttk.Entry(port_group, width=10, state="readonly", font=("Consolas", 10))
+        self.port_entry.pack(side=tk.LEFT, padx=5)
         self.port_entry.config(state=tk.NORMAL)
         self.port_entry.insert(0, str(self.config.get('port', 14729)))
         self.port_entry.config(state="readonly")
         
-        # 포트 잠금 해제 체크박스
         self.port_unlock = tk.BooleanVar(value=False)
-        self.port_lock_check = ttk.Checkbutton(row1, text="수정", variable=self.port_unlock,
+        self.port_lock_check = ttk.Checkbutton(port_group, text="수정", variable=self.port_unlock,
                                               command=lambda: self.port_entry.config(state=tk.NORMAL if self.port_unlock.get() else "readonly"))
-        self.port_lock_check.pack(side=tk.LEFT, padx=2)
-        
-        ttk.Label(row1, text="IP (내부/공인):").pack(side=tk.LEFT, padx=(10, 5))
-        self.ip_display = ttk.Label(row1, text="로딩 중...", foreground="blue", font=("Consolas", 10, "bold"))
-        self.ip_display.pack(side=tk.LEFT)
-        
-        ttk.Label(row1, text=" / ").pack(side=tk.LEFT)
-        
-        from core.utils import get_public_ip
-        self.pub_ip_label = ttk.Label(row1, text="로딩 중...", foreground="red", font=("Consolas", 10, "bold"))
-        self.pub_ip_label.pack(side=tk.LEFT)
-        
-        # 별도 스레드에서 내부/공인 IP 동시 조회 후 UI 갱신 (명령어 기반)
-        def update_all_ips():
-            import time
-            from core.utils import get_local_ip, get_public_ip
-            self.after(0, lambda: [self.ip_display.config(text="로딩 중..."), self.pub_ip_label.config(text="로딩 중...")])
-            self.after(0, self.update_idletasks)
-            time.sleep(1.2)
-            
-            lip = get_local_ip()
-            pip = get_public_ip()
-            
-            self.after(0, lambda: [self.ip_display.config(text=lip), self._update_pub_ip_ui(pip)])
-        threading.Thread(target=update_all_ips, daemon=True).start()
+        self.port_lock_check.pack(side=tk.LEFT)
 
-        row2 = ttk.Frame(cfg_frame); row2.pack(fill=tk.X, pady=2)
-        ttk.Label(row2, text="Root:").pack(side=tk.LEFT)
-        self.root_entry = ttk.Entry(row2); self.root_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        # IP 정보 그룹 (구분선 효과)
+        ip_group = ttk.Frame(net_row)
+        ip_group.pack(side=tk.RIGHT)
+        ttk.Label(ip_group, text="🌐 네트워크 상태:", font=("Malgun Gothic", 9, "bold")).pack(side=tk.LEFT, padx=(20, 5))
+        
+        self.ip_display = ttk.Label(ip_group, text="로딩 중...", foreground="#0056b3", font=("Consolas", 10, "bold"))
+        self.ip_display.pack(side=tk.LEFT)
+        ttk.Label(ip_group, text=" | ").pack(side=tk.LEFT, padx=2)
+        self.pub_ip_label = ttk.Label(ip_group, text="로딩 중...", foreground="#d32f2f", font=("Consolas", 10, "bold"))
+        self.pub_ip_label.pack(side=tk.LEFT)
+
+        # [행 2] 서버 루트 디렉토리
+        root_row = ttk.Frame(cfg_frame); root_row.pack(fill=tk.X, pady=5)
+        ttk.Label(root_row, text="📁 서버 루트:", font=("Malgun Gothic", 9)).pack(side=tk.LEFT)
+        self.root_entry = ttk.Entry(root_row, font=("Malgun Gothic", 9))
+        self.root_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         self.root_entry.insert(0, self.config.get('root_dir', ''))
-        self.root_btn = ttk.Button(row2, text="📁", width=3, command=self._browse_root)
+        self.root_btn = ttk.Button(root_row, text="찾아보기...", width=10, command=self._browse_root)
         self.root_btn.pack(side=tk.LEFT)
 
-        row3 = ttk.Frame(cfg_frame); row3.pack(fill=tk.X, pady=5)
-        self.anon_check = ttk.Checkbutton(row3, text="익명 허용", variable=self.allow_anonymous)
-        self.anon_check.pack(side=tk.LEFT, padx=5)
-        self.ftps_check = ttk.Checkbutton(row3, text="FTPS (보안)", variable=self.use_ftps)
-        self.ftps_check.pack(side=tk.LEFT, padx=10)
+        # [행 3] 주요 보안/네트워크 옵션
+        opt_row = ttk.Frame(cfg_frame); opt_row.pack(fill=tk.X, pady=(5, 0))
+        ttk.Label(opt_row, text="🛠️ 추가 옵션:", font=("Malgun Gothic", 9)).pack(side=tk.LEFT, padx=(0, 10))
         
+        self.anon_check = ttk.Checkbutton(opt_row, text="익명 접속 허용", variable=self.allow_anonymous)
+        self.anon_check.pack(side=tk.LEFT, padx=10)
+        self.ftps_check = ttk.Checkbutton(opt_row, text="FTPS 보안 활성화", variable=self.use_ftps)
+        self.ftps_check.pack(side=tk.LEFT, padx=10)
         self.use_nat = tk.BooleanVar(value=True)
-        self.nat_check = ttk.Checkbutton(row3, text="NAT/외부접속 지원", variable=self.use_nat)
-        self.nat_check.pack(side=tk.LEFT, padx=5)
+        self.nat_check = ttk.Checkbutton(opt_row, text="NAT/외부망 우회", variable=self.use_nat)
+        self.nat_check.pack(side=tk.LEFT, padx=10)
 
         list_frame = ttk.LabelFrame(left, text="👥 계정 목록", padding=10)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -180,16 +173,19 @@ class ServerTab(ttk.Frame):
             ttk.Checkbutton(self.perm_box, text=l, variable=v).grid(row=i//4, column=i%4, sticky=tk.W, padx=5)
 
         e_row3 = ttk.Frame(self.ed_frame); e_row3.pack(fill=tk.X)
-        self.save_btn = ttk.Button(e_row3, text="💾 저장/추가", command=self._on_save_user); self.save_btn.pack(side=tk.RIGHT)
+        self.save_btn = ttk.Button(e_row3, text="💾 사용자 정보 저장 / 신규 추가", command=self._on_save_user); self.save_btn.pack(side=tk.RIGHT, pady=5)
 
-        log_frame = ttk.LabelFrame(right, text="📜 활동 로그", padding=10)
+        log_frame = ttk.LabelFrame(right, text="📜 실시간 활동 로그", padding=15)
         log_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.log_text = scrolledtext.ScrolledText(log_frame, font=("Consolas", 9), state=tk.DISABLED, bg="#f8f9fa")
+        self.log_text = scrolledtext.ScrolledText(log_frame, font=("Consolas", 10), state=tk.DISABLED, 
+                                                 bg="#1e1e1e", fg="#dcdcdc", insertbackground="white")
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
-        ctrl_row = ttk.Frame(right); ctrl_row.pack(fill=tk.X, pady=5)
-        self.start_btn = ttk.Button(ctrl_row, text="▶️ 서버 가동", width=15, command=self.start_server); self.start_btn.pack(side=tk.LEFT, padx=5)
-        self.stop_btn = ttk.Button(ctrl_row, text="⏹️ 중지", width=10, state=tk.DISABLED, command=self.stop_server); self.stop_btn.pack(side=tk.LEFT)
+        ctrl_row = ttk.Frame(right); ctrl_row.pack(fill=tk.X, pady=(0, 10), padx=5)
+        self.start_btn = ttk.Button(ctrl_row, text="🚀 FTP 서버 가동 시작", width=25, command=self.start_server)
+        self.start_btn.pack(side=tk.LEFT, padx=5)
+        self.stop_btn = ttk.Button(ctrl_row, text="🛑 서버 중지", width=15, state=tk.DISABLED, command=self.stop_server)
+        self.stop_btn.pack(side=tk.LEFT)
 
     def _on_tree_edit(self):
         sel = self.tree.selection()
