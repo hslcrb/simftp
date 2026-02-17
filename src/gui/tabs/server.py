@@ -239,16 +239,20 @@ class ServerTab(ttk.Frame):
         self.e_id.bind("<KeyRelease>", self._auto_suggest_home)
 
     def _auto_suggest_home(self, event=None):
-        """아이디 입력 시 서버 루트 하위에 해당 아이디의 폴더를 자동 제안"""
-        if self.editing_index is not None: return # 편집 중일 때는 건드리지 않음
+        """아이디 입력 시 서버 루트 하위에 해당 아이디의 폴더를 자동 제안 (비어있을 때만)"""
+        if self.editing_index is not None: return
         
         uid = self.e_id.get().strip()
         root = self.root_entry.get()
+        current_home = self.e_home.get().strip()
         
+        # 이미 무언가 입력되어 있고, 그게 자동 제안된 형식이 아니라면 건드리지 않음
         if uid:
             suggested = os.path.normpath(os.path.join(root, uid))
-            self.e_home.delete(0, tk.END)
-            self.e_home.insert(0, suggested)
+            # 비어있거나, 글자 수가 매우 적거나, 이전 아이디의 잔재일 때만 업데이트
+            if not current_home or current_home == root or current_home.startswith(root):
+                self.e_home.delete(0, tk.END)
+                self.e_home.insert(0, suggested)
 
         log_frame = ttk.LabelFrame(right, text="📜 실시간 활동 로그", padding=15)
         log_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
