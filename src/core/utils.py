@@ -62,22 +62,42 @@ def generate_ssl_cert(cert_path, key_path):
         print(f"[Crypto Error] {e}")
         return False
 
-import hashlib
-import secrets
+from cryptography.fernet import Fernet
+import base64
+
+def get_master_key():
+    """시스템에서 사용할 고유 암호화 키를 가져오거나 생성합니다."""
+    key_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config', 'master.key')
+    if os.path.exists(key_path):
+        with open(key_path, 'rb') as f:
+            return f.read()
+    else:
+        key = Fernet.generate_key()
+        os.makedirs(os.path.dirname(key_path), exist_ok=True)
+        with open(key_path, 'wb') as f:
+            f.write(key)
+        return key
+
+def encrypt_password(password):
+    """비밀번호를 양방향 암호화합니다."""
+    if not password: return ""
+    f = Fernet(get_master_key())
+    return f.encrypt(password.encode()).decode()
+
+def decrypt_password(encrypted_password):
+    """암호화된 비밀번호를 복호화합니다."""
+    if not encrypted_password: return ""
+    try:
+        f = Fernet(get_master_key())
+        return f.decrypt(encrypted_password.encode()).decode()
+    except Exception:
+        # 이전에 저장된 평문이나 해시일 경우 그대로 반환 (하위 호환)
+        return encrypted_password
 
 def hash_password(password, salt=None):
-    """비밀번호를 솔트와 함께 해싱합니다."""
-    if not salt:
-        salt = secrets.token_hex(8)
-    h = hashlib.sha256((password + salt).encode()).hexdigest()
-    return f"{salt}${h}"
+    """(더 이상 사용되지 않으나 하위 호환을 위해 유지)"""
+    return password
 
 def verify_password(stored_password, provided_password):
-    """제공된 비밀번호가 저장된 해시와 일치하는지 확인합니다."""
-    try:
-        if '$' not in stored_password:  # 하위 호환성 (평문 처리)
-            return stored_password == provided_password
-        salt, _ = stored_password.split('$', 1)
-        return hash_password(provided_password, salt) == stored_password
-    except Exception:
-        return False
+    """암호화된 비번과 입력된 비번을 비교합니다."""
+    return decrypt_password(stored_password) == provided_password

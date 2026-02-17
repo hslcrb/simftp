@@ -6,15 +6,15 @@ from datetime import datetime
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
 from pyftpdlib.servers import FTPServer
-from core.utils import get_local_ip, generate_ssl_cert, hash_password, verify_password
+from core.utils import get_local_ip, generate_ssl_cert, hash_password, verify_password, encrypt_password, decrypt_password
 
 class HashedAuthorizer(DummyAuthorizer):
-    """비밀번호 해시 검증을 지원하는 사용자 인증 매니저"""
+    """암호화된 비밀번호를 복호화하여 검증하는 사용자 인증 매니저"""
     def validate_authentication(self, username, password, handler):
         if not self.has_user(username):
             return False
         stored_pw = self.user_table[username]['password']
-        return verify_password(stored_pw, password)
+        return decrypt_password(stored_pw) == password
 
 class ServerTab(ttk.Frame):
     """모듈화된 FTP 서버 제어 탭"""
@@ -173,8 +173,11 @@ class ServerTab(ttk.Frame):
         idx = self.tree.index(sel[0]); u = self.users[idx]
         self.editing_index = idx
         self.e_id.delete(0, tk.END); self.e_id.insert(0, u['username']); self.e_id.config(state='readonly')
-        # 보안을 위해 실제 비밀번호 해시 대신 별표 표시
-        self.e_pw.delete(0, tk.END); self.e_pw.insert(0, "********")
+        
+        # 보안 토큰(master.key)을 사용하여 복호화 후 표시 (이제 보기 버튼 작동)
+        raw_pw = decrypt_password(u['password'])
+        self.e_pw.delete(0, tk.END); self.e_pw.insert(0, raw_pw)
+        
         self.e_home.delete(0, tk.END); self.e_home.insert(0, u['home_dir'])
         for p, v in self.p_vars.items(): v.set(p in u['perms'])
         self.save_btn.config(text="💾 변경사항 업데이트")
@@ -191,13 +194,10 @@ class ServerTab(ttk.Frame):
         perms = "".join([p for p, v in self.p_vars.items() if v.get()])
         if not uid or not pw or not home: return
 
-        # 비밀번호가 변경되지 않았을 경우(********) 기존 해시 유지
-        if pw == "********" and self.editing_index is not None:
-            pw = self.users[self.editing_index]['password']
-        else:
-            pw = hash_password(pw)
+        # 양방향 암호화 적용 (나중에 복호화 가능하도록)
+        encrypted_pw = encrypt_password(pw)
 
-        data = {"username": uid, "password": pw, "home_dir": home, "perms": perms}
+        data = {"username": uid, "password": encrypted_pw, "home_dir": home, "perms": perms}
         if self.editing_index is not None: self.users[self.editing_index] = data
         else: self.users.append(data)
         self.config_manager.save_users(self.users); self.refresh_users_tree(); self._on_new_user()
@@ -234,6 +234,9 @@ class ServerTab(ttk.Frame):
             auth = HashedAuthorizer()
             for u in self.users:
                 if not os.path.exists(u['home_dir']): os.makedirs(u['home_dir'])
+                # authorizer에는 실제 평문 비번을 전달 (validate_authentication에서 내부적으로 verify_password/decrypt_password 사용)
+                # authorizer의 add_user는 내부적으로 user_table에 저장만 하므로, 
+                # validate_authentication을 재정의한 HashedAuthorizer가 암호화된 값을 처리합니다.
                 auth.add_user(u['username'], u['password'], u['home_dir'], perm=u['perms'])
             if self.allow_anonymous.get():
                 if not os.path.exists(root): os.makedirs(root)
