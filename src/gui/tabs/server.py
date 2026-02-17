@@ -6,7 +6,15 @@ from datetime import datetime
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
 from pyftpdlib.servers import FTPServer
-from core.utils import get_local_ip, generate_ssl_cert
+from core.utils import get_local_ip, generate_ssl_cert, hash_password, verify_password
+
+class HashedAuthorizer(DummyAuthorizer):
+    """비밀번호 해시 검증을 지원하는 사용자 인증 매니저"""
+    def validate_authentication(self, username, password, handler):
+        if not self.has_user(username):
+            return False
+        stored_pw = self.user_table[username]['password']
+        return verify_password(stored_pw, password)
 
 class ServerTab(ttk.Frame):
     """모듈화된 FTP 서버 제어 탭"""
@@ -165,7 +173,8 @@ class ServerTab(ttk.Frame):
         idx = self.tree.index(sel[0]); u = self.users[idx]
         self.editing_index = idx
         self.e_id.delete(0, tk.END); self.e_id.insert(0, u['username']); self.e_id.config(state='readonly')
-        self.e_pw.delete(0, tk.END); self.e_pw.insert(0, u['password'])
+        # 보안을 위해 실제 비밀번호 해시 대신 별표 표시
+        self.e_pw.delete(0, tk.END); self.e_pw.insert(0, "********")
         self.e_home.delete(0, tk.END); self.e_home.insert(0, u['home_dir'])
         for p, v in self.p_vars.items(): v.set(p in u['perms'])
         self.save_btn.config(text="💾 변경사항 업데이트")
@@ -181,6 +190,13 @@ class ServerTab(ttk.Frame):
         uid, pw, home = self.e_id.get().strip(), self.e_pw.get(), self.e_home.get().strip()
         perms = "".join([p for p, v in self.p_vars.items() if v.get()])
         if not uid or not pw or not home: return
+
+        # 비밀번호가 변경되지 않았을 경우(********) 기존 해시 유지
+        if pw == "********" and self.editing_index is not None:
+            pw = self.users[self.editing_index]['password']
+        else:
+            pw = hash_password(pw)
+
         data = {"username": uid, "password": pw, "home_dir": home, "perms": perms}
         if self.editing_index is not None: self.users[self.editing_index] = data
         else: self.users.append(data)
@@ -215,7 +231,7 @@ class ServerTab(ttk.Frame):
         self.config.update({"port": port, "root_dir": root, "allow_anonymous": self.allow_anonymous.get(), "use_ftps": self.use_ftps.get()})
         self.config_manager.save_server_config(self.config)
         try:
-            auth = DummyAuthorizer()
+            auth = HashedAuthorizer()
             for u in self.users:
                 if not os.path.exists(u['home_dir']): os.makedirs(u['home_dir'])
                 auth.add_user(u['username'], u['password'], u['home_dir'], perm=u['perms'])

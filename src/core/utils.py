@@ -61,3 +61,23 @@ def generate_ssl_cert(cert_path, key_path):
     except Exception as e:
         print(f"[Crypto Error] {e}")
         return False
+
+import hashlib
+import secrets
+
+def hash_password(password, salt=None):
+    """비밀번호를 솔트와 함께 해싱합니다."""
+    if not salt:
+        salt = secrets.token_hex(8)
+    h = hashlib.sha256((password + salt).encode()).hexdigest()
+    return f"{salt}${h}"
+
+def verify_password(stored_password, provided_password):
+    """제공된 비밀번호가 저장된 해시와 일치하는지 확인합니다."""
+    try:
+        if '$' not in stored_password:  # 하위 호환성 (평문 처리)
+            return stored_password == provided_password
+        salt, _ = stored_password.split('$', 1)
+        return hash_password(provided_password, salt) == stored_password
+    except Exception:
+        return False
