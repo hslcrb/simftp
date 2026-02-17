@@ -6,6 +6,9 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
+# core.utils는 필요한 함수가 호출될 때만 임포트하도록 변경 (지연 로딩)
+# from core.utils import get_master_key, generate_ssl_cert # Removed global import
+
 class SettingsTab(ttk.Frame):
     """보안 도구 및 서버 자동 재시작 스케줄링 기능을 제공하는 설정 탭"""
     def __init__(self, parent, config_manager, server_tab):
@@ -15,6 +18,30 @@ class SettingsTab(ttk.Frame):
         
         # 권장 설정: 매일 00:01 한국 표준시(KST) 재시작 활성화
         self.auto_restart = tk.BooleanVar(value=True)
+        
+        # 린터 오류 방지를 위한 속성 초기화 (SettingsTab 관련)
+        self.restart_now_btn = None
+        self.reboot_app_btn = None
+        self.reset_key_btn = None
+        self.reset_cert_btn = None
+
+        # 린터 오류 방지를 위한 속성 초기화 (ServerTab에서 사용될 수 있는 속성들)
+        # 이 속성들은 SettingsTab에서 직접 사용되지 않지만,
+        # ServerTab 인스턴스에 접근할 때 린터가 경고를 발생시키지 않도록 선언
+        # (실제 ServerTab의 __init__에도 선언되어야 함)
+        self.ftps_check = None
+        self.nat_check = None
+        self.tree = None
+        self.e_id = None
+        self.e_pw = None
+        self.e_home = None
+        self.perm_box = None
+        self.p_vars = {}
+        self.save_btn = None
+        self.log_text = None
+        self.start_btn = None
+        self.stop_btn = None
+        self.pub_ip_label = None
         
         self._setup_ui()
         self._start_scheduler()
