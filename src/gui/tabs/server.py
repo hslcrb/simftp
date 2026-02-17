@@ -110,6 +110,8 @@ class ServerTab(ttk.Frame):
         
         # 별도 스레드에서 공인 IP 조회 후 UI 갱신
         def update_pub_ip():
+            import time
+            time.sleep(0.5) # 사용자가 '로딩 중...' 상태를 인지할 수 있도록 찰나의 지연 추가
             pip = get_public_ip()
             self.after(0, lambda: self._update_pub_ip_ui(pip))
         threading.Thread(target=update_pub_ip, daemon=True).start()

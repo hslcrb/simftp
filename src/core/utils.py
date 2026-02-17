@@ -16,19 +16,30 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """외부 인터넷 접속용 공인 IP 주소를 모든 프록시를 우회하여 확인합니다."""
+    """외부 인터넷 접속용 공인 IP 주소를 모든 캐시와 프록시를 무시하고 실시간 조회합니다."""
     import urllib.request
+    import json
+    import time
     import os
+    
+    # 시스템에 설정된 모든 프록시 환경 변수 무력화
+    for env_var in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'no_proxy', 'NO_PROXY']:
+        if env_var in os.environ:
+            del os.environ[env_var]
+    os.environ['no_proxy'] = '*'
+
     try:
-        # 시스템 환경 변수의 프록시 설정(HTTP_PROXY 등)을 완전히 무시
+        # 캐시 방지를 위한 타임스탬프와 JSON 포맷 강제
+        url = f'https://api.ipify.org?format=json&t={int(time.time())}'
+        
+        # 프록시 없는 순수 연결 핸들러 생성
         proxy_handler = urllib.request.ProxyHandler({})
         opener = urllib.request.build_opener(proxy_handler)
-        urllib.request.install_opener(opener)
         
-        req = urllib.request.Request('https://api.ipify.org', headers={'User-Agent': 'Mozilla/5.0'})
-        # 환경 변수를 무시하고 직접 연결하기 위해 context를 미사용하거나 기본값으로 설정
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with opener.open(req, timeout=5) as response:
-            return response.read().decode('utf-8').strip()
+            data = json.loads(response.read().decode('utf-8'))
+            return data.get('ip', '확인 불가')
     except Exception:
         return "확인 불가"
 
