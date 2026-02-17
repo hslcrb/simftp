@@ -57,6 +57,11 @@ class SettingsTab(ttk.Frame):
         self._setup_ui()
         self._start_scheduler()
 
+    def _validate_digits(self, P):
+        """입력값이 숫자인지 확인하는 유효성 검사 함수"""
+        if P == "": return True
+        return P.isdigit()
+
     def _setup_ui(self):
         container = ttk.Frame(self, padding=20)
         container.pack(fill=tk.BOTH, expand=True)
@@ -162,30 +167,33 @@ class SettingsTab(ttk.Frame):
         )
         self.recom_btn.pack(fill=tk.X, pady=(0, 15))
 
+        # 숫자만 입력 가능하도록 유효성 검사 등록
+        vcmd = (self.register(self._validate_digits), '%P')
+
         e_row1 = ttk.Frame(eng_frame); e_row1.pack(fill=tk.X, pady=5)
         
         # 최대 동시 접속
         ttk.Label(e_row1, text="최대 동시 접속:").pack(side=tk.LEFT)
-        self.max_cons = ttk.Combobox(e_row1, width=10, values=["50", "100", "256", "500", "1000", "0"])
+        self.max_cons = ttk.Combobox(e_row1, width=10, values=["50", "100", "256", "500", "1000", "0"], validate="key", validatecommand=vcmd)
         self.max_cons.pack(side=tk.LEFT, padx=5)
         self.max_cons.set(self.config_manager.get_server_config().get('max_cons', 256))
         ttk.Label(e_row1, text="(0=무제한)").pack(side=tk.LEFT, padx=(0, 15))
 
         # IP당 최대 접속
         ttk.Label(e_row1, text="IP당 최대 접속:").pack(side=tk.LEFT)
-        self.max_per_ip = ttk.Combobox(e_row1, width=10, values=["3", "5", "10", "20", "50", "100", "0"])
+        self.max_per_ip = ttk.Combobox(e_row1, width=10, values=["3", "5", "10", "20", "50", "100", "0"], validate="key", validatecommand=vcmd)
         self.max_per_ip.pack(side=tk.LEFT, padx=5)
         self.max_per_ip.set(self.config_manager.get_server_config().get('max_cons_per_ip', 10))
         ttk.Label(e_row1, text="(0=무제한)").pack(side=tk.LEFT)
 
         e_row2 = ttk.Frame(eng_frame); e_row2.pack(fill=tk.X, pady=5)
         
-        # 대기 타임아웃
-        ttk.Label(e_row2, text="대기 타임아웃(초):").pack(side=tk.LEFT)
-        self.timeout = ttk.Combobox(e_row2, width=10, values=["60", "300", "600", "1800", "3600", "0"])
+        # 유휴 세션 종료 (Idle Timeout)
+        ttk.Label(e_row2, text="유휴 세션 종료(초):").pack(side=tk.LEFT)
+        self.timeout = ttk.Combobox(e_row2, width=10, values=["60", "300", "600", "1800", "3600", "0"], validate="key", validatecommand=vcmd)
         self.timeout.pack(side=tk.LEFT, padx=5)
         self.timeout.set(self.config_manager.get_server_config().get('timeout', 600))
-        ttk.Label(e_row2, text="(초 단위, 0=무제한)").pack(side=tk.LEFT)
+        ttk.Label(e_row2, text="(활동이 없을 시 자동 로그아웃)").pack(side=tk.LEFT)
 
         ttk.Button(e_row2, text="💾 설정 저장", command=self.save_engine_settings).pack(side=tk.RIGHT)
 
