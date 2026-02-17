@@ -16,52 +16,18 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """프록시를 우회하고 여러 서비스를 교차 검증하여 실제 공인 IP를 찾아냅니다."""
-    import json
-    import time
+    """외부 인터넷 접속용 공인 IP 주소를 ipify 서비스를 통해 확인합니다."""
     import urllib.request
-    
-    # 프록시 완전 무시 핸들러
-    proxy_handler = urllib.request.ProxyHandler({})
-    opener = urllib.request.build_opener(proxy_handler)
-    
-    # 교차 검증용 서비스 목록
-    services = [
-        f'https://api.ipify.org?format=json&t={int(time.time())}',
-        'https://ipv4.icanhazip.com/',
-        f'https://v4.ident.me/.json?t={int(time.time())}',
-        'https://ifconfig.me/ip'
-    ]
-    
-    detected_ips = []
-    
-    for url in services:
-        try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with opener.open(req, timeout=3) as response:
-                content = response.read().decode('utf-8').strip()
-                
-                # 결과 추출 (JSON 또는 Plain Text)
-                if '{' in content:
-                    data = json.loads(content)
-                    ip = data.get('ip') or data.get('ip_addr')
-                else:
-                    ip = content
-                
-                if ip and ip.count('.') == 3:
-                    # 가중치 계산: .1로 끝나는 주소는 0점, 정상 주소는 1점
-                    weight = 0 if ip.endswith('.1') else 1
-                    detected_ips.append((ip, weight))
-        except:
-            continue
-            
-    if not detected_ips:
-        return "확인 불가"
+    try:
+        # 프록시 설정을 무시하고 직접 연결 (오감지 방지)
+        proxy_handler = urllib.request.ProxyHandler({})
+        opener = urllib.request.build_opener(proxy_handler)
         
-    # 1. 가중치(정상 주소 우선) 2. 빈도수 순으로 정렬하여 최적의 IP 반환
-    # 만약 .199가 한 번이라도 나왔다면 그 값이 최우선이 됩니다.
-    detected_ips.sort(key=lambda x: x[1], reverse=True)
-    return detected_ips[0][0]
+        req = urllib.request.Request('https://api.ipify.org', headers={'User-Agent': 'Mozilla/5.0'})
+        with opener.open(req, timeout=5) as response:
+            return response.read().decode('utf-8').strip()
+    except Exception:
+        return "확인 불가"
 
 def generate_ssl_cert(cert_path, key_path):
     """자가 서명 SSL 인증서와 개인키를 생성합니다."""
