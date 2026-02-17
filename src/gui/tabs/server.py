@@ -235,6 +235,21 @@ class ServerTab(ttk.Frame):
         e_row3 = ttk.Frame(self.ed_frame); e_row3.pack(fill=tk.X)
         self.save_btn = ttk.Button(e_row3, text="💾 사용자 정보 저장 / 신규 추가", command=self._on_save_user); self.save_btn.pack(side=tk.RIGHT, pady=5)
 
+        # ID 입력에 따른 경로 자동 제안 바인딩
+        self.e_id.bind("<KeyRelease>", self._auto_suggest_home)
+
+    def _auto_suggest_home(self, event=None):
+        """아이디 입력 시 서버 루트 하위에 해당 아이디의 폴더를 자동 제안"""
+        if self.editing_index is not None: return # 편집 중일 때는 건드리지 않음
+        
+        uid = self.e_id.get().strip()
+        root = self.root_entry.get()
+        
+        if uid:
+            suggested = os.path.normpath(os.path.join(root, uid))
+            self.e_home.delete(0, tk.END)
+            self.e_home.insert(0, suggested)
+
         log_frame = ttk.LabelFrame(right, text="📜 실시간 활동 로그", padding=15)
         log_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.log_text = scrolledtext.ScrolledText(log_frame, font=("Consolas", 10), state=tk.DISABLED, 
