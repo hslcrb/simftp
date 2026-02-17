@@ -82,7 +82,9 @@ class SettingsTab(ttk.Frame):
         # 1. 서버 중단 섹션
         stop_row = ttk.Frame(ctrl_frame); stop_row.pack(fill=tk.X, pady=5)
         self.stop_btn = tk.Button(
-            stop_row, text="🛑 서버 즉시 중단", bg="#6c757d", fg="#a0a0a0",
+            stop_row, text="🛑 서버 즉시 중단", bg="#495057", fg="#ffffff",
+            activebackground="#c82333", activeforeground="white",
+            disabledforeground="#868e96", # 비활성화 시에도 읽을 수 있는 밝은 회색
             font=("Malgun Gothic", 11, "bold"), height=2, state=tk.DISABLED, 
             command=lambda: [self.server_tab.stop_server(), [v.set(False) for v in self.stop_vars], self._update_stop_btn_state()]
         )
@@ -93,7 +95,9 @@ class SettingsTab(ttk.Frame):
         # 2. 서버 엔진 재시작 섹션
         restart_row = ttk.Frame(ctrl_frame); restart_row.pack(fill=tk.X, pady=5)
         self.restart_btn = tk.Button(
-            restart_row, text="♻️ 서버 엔진 재시작", bg="#6c757d", fg="#a0a0a0",
+            restart_row, text="♻️ 서버 엔진 재시작", bg="#495057", fg="#ffffff",
+            activebackground="#e0a800", activeforeground="black",
+            disabledforeground="#868e96", # 비활성화 시에도 읽을 수 있는 밝은 회색
             font=("Malgun Gothic", 11, "bold"), height=2, state=tk.DISABLED, command=self._on_restart_server
         )
         self.restart_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
@@ -158,30 +162,32 @@ class SettingsTab(ttk.Frame):
         )
         self.recom_btn.pack(fill=tk.X, pady=(0, 15))
 
-        e_row1 = ttk.Frame(eng_frame); e_row1.pack(fill=tk.X, pady=2)
+        e_row1 = ttk.Frame(eng_frame); e_row1.pack(fill=tk.X, pady=5)
+        
+        # 최대 동시 접속
         ttk.Label(e_row1, text="최대 동시 접속:").pack(side=tk.LEFT)
-        self.max_cons = tk.Entry(e_row1, width=8, state=tk.DISABLED, disabledbackground="#f0f0f0", disabledforeground="#000000")
+        self.max_cons = ttk.Combobox(e_row1, width=10, values=["50", "100", "256", "500", "1000", "0"])
         self.max_cons.pack(side=tk.LEFT, padx=5)
-        self.max_cons.insert(0, str(self.config_manager.get_server_config().get('max_cons', 256)))
-        ttk.Checkbutton(e_row1, text="잠금 해제", variable=self.lock_max_cons, 
-                        command=lambda: self.max_cons.config(state=tk.NORMAL if not self.lock_max_cons.get() else tk.DISABLED)).pack(side=tk.LEFT)
+        self.max_cons.set(self.config_manager.get_server_config().get('max_cons', 256))
+        ttk.Label(e_row1, text="(0=무제한)").pack(side=tk.LEFT, padx=(0, 15))
 
-        ttk.Label(e_row1, text="IP당 최대 접속:").pack(side=tk.LEFT, padx=(20, 0))
-        self.max_per_ip = tk.Entry(e_row1, width=8, state=tk.DISABLED, disabledbackground="#f0f0f0", disabledforeground="#000000")
+        # IP당 최대 접속
+        ttk.Label(e_row1, text="IP당 최대 접속:").pack(side=tk.LEFT)
+        self.max_per_ip = ttk.Combobox(e_row1, width=10, values=["3", "5", "10", "20", "50", "100", "0"])
         self.max_per_ip.pack(side=tk.LEFT, padx=5)
-        self.max_per_ip.insert(0, str(self.config_manager.get_server_config().get('max_cons_per_ip', 10)))
-        ttk.Checkbutton(e_row1, text="잠금 해제", variable=self.lock_max_per_ip, 
-                        command=lambda: self.max_per_ip.config(state=tk.NORMAL if not self.lock_max_per_ip.get() else tk.DISABLED)).pack(side=tk.LEFT)
+        self.max_per_ip.set(self.config_manager.get_server_config().get('max_cons_per_ip', 10))
+        ttk.Label(e_row1, text="(0=무제한)").pack(side=tk.LEFT)
 
         e_row2 = ttk.Frame(eng_frame); e_row2.pack(fill=tk.X, pady=5)
+        
+        # 대기 타임아웃
         ttk.Label(e_row2, text="대기 타임아웃(초):").pack(side=tk.LEFT)
-        self.timeout = tk.Entry(e_row2, width=8, state=tk.DISABLED, disabledbackground="#f0f0f0", disabledforeground="#000000")
+        self.timeout = ttk.Combobox(e_row2, width=10, values=["60", "300", "600", "1800", "3600", "0"])
         self.timeout.pack(side=tk.LEFT, padx=5)
-        self.timeout.insert(0, str(self.config_manager.get_server_config().get('timeout', 600)))
-        ttk.Checkbutton(e_row2, text="잠금 해제", variable=self.lock_timeout, 
-                        command=lambda: self.timeout.config(state=tk.NORMAL if not self.lock_timeout.get() else tk.DISABLED)).pack(side=tk.LEFT)
+        self.timeout.set(self.config_manager.get_server_config().get('timeout', 600))
+        ttk.Label(e_row2, text="(초 단위, 0=무제한)").pack(side=tk.LEFT)
 
-        ttk.Button(e_row2, text="💾 개별 엔진 설정 저장", command=self.save_engine_settings).pack(side=tk.RIGHT)
+        ttk.Button(e_row2, text="💾 설정 저장", command=self.save_engine_settings).pack(side=tk.RIGHT)
 
         # --- 정보 영역 ---
         info_frame = ttk.LabelFrame(container, text="ℹ️ 시스템 정보", padding=15)
@@ -237,14 +243,14 @@ class SettingsTab(ttk.Frame):
         if all(v.get() for v in self.stop_vars):
             self.stop_btn.config(state=tk.NORMAL, bg="#dc3545", fg="white")
         else:
-            self.stop_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
+            self.stop_btn.config(state=tk.DISABLED, bg="#495057", fg="#ffffff")
 
     def _update_restart_btn_state(self):
         """3개 체크박스 확인 후 재시작 버튼 활성화/색상 변경"""
         if all(v.get() for v in self.restart_vars):
             self.restart_btn.config(state=tk.NORMAL, bg="#ffc107", fg="black")
         else:
-            self.restart_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
+            self.restart_btn.config(state=tk.DISABLED, bg="#495057", fg="#ffffff")
 
     def _on_restart_server(self):
         """서버 엔진 재시작 로직 (체크박스 초기화 포함)"""
@@ -351,13 +357,10 @@ class SettingsTab(ttk.Frame):
             
         try:
             # UI 값 업데이트
-            for entry, val, lock in [(self.max_cons, "256", self.lock_max_cons), 
-                                     (self.max_per_ip, "10", self.lock_max_per_ip), 
-                                     (self.timeout, "600", self.lock_timeout)]:
-                entry.config(state=tk.NORMAL)
-                entry.delete(0, tk.END); entry.insert(0, val)
-                lock.set(True) # 다시 잠금
-                entry.config(state=tk.DISABLED)
+            # UI 값 업데이트
+            self.max_cons.set("256")
+            self.max_per_ip.set("10")
+            self.timeout.set("600")
 
             # 설정 저장
             cfg = self.config_manager.get_server_config()
