@@ -188,7 +188,8 @@ class ServerTab(ttk.Frame):
         if not sel: return
         idx = self.tree.index(sel[0]); u = self.users[idx]
         self.editing_index = idx
-        self.e_id.delete(0, tk.END); self.e_id.insert(0, u['username']); self.e_id.config(state='readonly')
+        self.e_id.config(state=tk.NORMAL)
+        self.e_id.delete(0, tk.END); self.e_id.insert(0, u['username'])
         
         # 보안 토큰(master.key)을 사용하여 복호화 후 표시 (이제 보기 버튼 작동)
         raw_pw = decrypt_password(u['password'])
@@ -204,11 +205,16 @@ class ServerTab(ttk.Frame):
         self.e_home.delete(0, tk.END); self.e_home.insert(0, self.root_entry.get())
         for v in self.p_vars.values(): v.set(True)
         self.save_btn.config(text="💾 신규 추가")
-
     def _on_save_user(self):
         uid, pw, home = self.e_id.get().strip(), self.e_pw.get(), self.e_home.get().strip()
         perms = "".join([p for p, v in self.p_vars.items() if v.get()])
         if not uid or not pw or not home: return
+
+        # 중복 체크 (편집 중인 본인은 제외)
+        for i, u in enumerate(self.users):
+            if u['username'] == uid and i != self.editing_index:
+                messagebox.showerror("오류", "이미 존재하는 아이디입니다.")
+                return
 
         # 양방향 암호화 적용 (나중에 복호화 가능하도록)
         encrypted_pw = encrypt_password(pw)
