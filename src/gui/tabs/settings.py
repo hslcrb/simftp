@@ -38,10 +38,21 @@ class SettingsTab(ttk.Frame):
         self.perm_box = None
         self.p_vars = {}
         self.save_btn = None
-        self.log_text = None
         self.start_btn = None
         self.stop_btn = None
+        self.restart_btn = None
         self.pub_ip_label = None
+        
+        self.max_cons = None
+        self.max_per_ip = None
+        self.timeout = None
+        self.recom_btn = None
+        self.lock_max_cons = tk.BooleanVar(value=True)
+        self.lock_max_per_ip = tk.BooleanVar(value=True)
+        self.lock_timeout = tk.BooleanVar(value=True)
+        
+        self.stop_vars = [tk.BooleanVar(value=False) for _ in range(3)]
+        self.restart_vars = [tk.BooleanVar(value=False) for _ in range(3)]
         
         self._setup_ui()
         self._start_scheduler()
@@ -64,22 +75,38 @@ class SettingsTab(ttk.Frame):
         ttk.Label(sched_frame, text=sched_info).pack(side=tk.LEFT, padx=(0, 20))
         ttk.Checkbutton(sched_frame, text="매일 00:01 (KST) 자동 재시작 활성화", variable=self.auto_restart).pack(side=tk.RIGHT)
 
-        # --- 서버 제어 도구 (Remote Control) ---
-        ctrl_frame = ttk.LabelFrame(container, text="🎮 실시간 서버 제어", padding=15)
+        # --- 서버 제어 센터 (Safety Remote Control) ---
+        ctrl_frame = ttk.LabelFrame(container, text="🚀 서버 제어 센터 (3중 안전 장치)", padding=15)
         ctrl_frame.pack(fill=tk.X, pady=10)
 
-        c_row1 = ttk.Frame(ctrl_frame); c_row1.pack(fill=tk.X, pady=5)
-        self.restart_now_btn = tk.Button(
-            c_row1, text="♻️ 즉시 서버 엔진 재시작", bg="#ffc107", 
-            command=self.confirm_immediate_restart, font=("Malgun Gothic", 9, "bold"), padx=10
+        # 1. 서버 중단 섹션
+        stop_row = ttk.Frame(ctrl_frame); stop_row.pack(fill=tk.X, pady=5)
+        self.stop_btn = tk.Button(
+            stop_row, text="🛑 서버 즉시 중단", bg="#6c757d", fg="#a0a0a0",
+            font=("Malgun Gothic", 11, "bold"), height=2, state=tk.DISABLED, 
+            command=lambda: [self.server_tab.stop_server(), [v.set(False) for v in self.stop_vars], self._update_stop_btn_state()]
         )
-        self.restart_now_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        self.stop_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        for i in range(3):
+            ttk.Checkbutton(stop_row, variable=self.stop_vars[i], command=self._update_stop_btn_state).pack(side=tk.LEFT, padx=2)
 
-        self.reboot_app_btn = tk.Button(
-            c_row1, text="🔌 앱 종료 후 즉시 재실행 (서버 자동 가동)", bg="#fd7e14", fg="white",
-            command=self.confirm_app_reboot, font=("Malgun Gothic", 9, "bold"), padx=10
+        # 2. 서버 엔진 재시작 섹션
+        restart_row = ttk.Frame(ctrl_frame); restart_row.pack(fill=tk.X, pady=5)
+        self.restart_btn = tk.Button(
+            restart_row, text="♻️ 서버 엔진 재시작", bg="#6c757d", fg="#a0a0a0",
+            font=("Malgun Gothic", 11, "bold"), height=2, state=tk.DISABLED, command=self._on_restart_server
         )
-        self.reboot_app_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        self.restart_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        for i in range(3):
+            ttk.Checkbutton(restart_row, variable=self.restart_vars[i], command=self._update_restart_btn_state).pack(side=tk.LEFT, padx=2)
+
+        # 3. 추가 도구
+        tool_row = ttk.Frame(ctrl_frame); tool_row.pack(fill=tk.X, pady=5)
+        self.reboot_app_btn = tk.Button(
+            tool_row, text="🔌 앱 프로세스 자체 재시작 (Full Reboot)", bg="#fd7e14", fg="white",
+            command=self.confirm_app_reboot, font=("Malgun Gothic", 9), padx=10
+        )
+        self.reboot_app_btn.pack(fill=tk.X)
 
         # --- 위험 구역 (Critical Zone) ---
         danger_frame = ttk.LabelFrame(container, text="🚨 위험 구역 (Critical Zone)", padding=15)
@@ -130,10 +157,6 @@ class SettingsTab(ttk.Frame):
             command=self.apply_recommended_and_restart, pady=8
         )
         self.recom_btn.pack(fill=tk.X, pady=(0, 15))
-
-        self.lock_max_cons = tk.BooleanVar(value=True)
-        self.lock_max_per_ip = tk.BooleanVar(value=True)
-        self.lock_timeout = tk.BooleanVar(value=True)
 
         e_row1 = ttk.Frame(eng_frame); e_row1.pack(fill=tk.X, pady=2)
         ttk.Label(e_row1, text="최대 동시 접속:").pack(side=tk.LEFT)
@@ -208,6 +231,27 @@ class SettingsTab(ttk.Frame):
         else:
             # 가동 중이 아니었더라도 자동 가동 설정에 따라 시작 가능
             self.server_tab.start_server()
+
+    def _update_stop_btn_state(self):
+        """3개 체크박스 확인 후 중단 버튼 활성화/색상 변경"""
+        if all(v.get() for v in self.stop_vars):
+            self.stop_btn.config(state=tk.NORMAL, bg="#dc3545", fg="white")
+        else:
+            self.stop_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
+
+    def _update_restart_btn_state(self):
+        """3개 체크박스 확인 후 재시작 버튼 활성화/색상 변경"""
+        if all(v.get() for v in self.restart_vars):
+            self.restart_btn.config(state=tk.NORMAL, bg="#ffc107", fg="black")
+        else:
+            self.restart_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
+
+    def _on_restart_server(self):
+        """서버 엔진 재시작 로직 (체크박스 초기화 포함)"""
+        self.server_tab.stop_server()
+        self.after(1500, self.server_tab.start_server)
+        for v in self.restart_vars: v.set(False)
+        self._update_restart_btn_state()
 
     def confirm_reset_master_key(self):
         """3번의 경고 후 마스터 키 초기화 (진행률 표시)"""

@@ -205,86 +205,72 @@ class ServerTab(ttk.Frame):
         ttk.Button(btn_row, text="➕ 신규", command=self._on_new_user).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_row, text="➖ 삭제", command=self._on_delete_user).pack(side=tk.LEFT, padx=2)
 
-        v_right = ttk.Frame(right); v_right.pack(fill=tk.BOTH, expand=True)
-
-        # 1. 인라인 계정 편집기
-        self.ed_frame = ttk.LabelFrame(v_right, text="📝 인라인 계정 편집", padding=10)
+        # --- 오른쪽: 인라인 편집기 및 로그 ---
+        self.ed_frame = ttk.LabelFrame(right, text="📝 인라인 계정 편집", padding=10)
         self.ed_frame.pack(fill=tk.X, padx=5, pady=5)
-        # (계정 편집기 내부 요소들은 아래 ReplacementChunk에서 처리됨)
+        
+        e_row1 = ttk.Frame(self.ed_frame); e_row1.pack(fill=tk.X, pady=2)
+        ttk.Label(e_row1, text="아이디:").pack(side=tk.LEFT)
+        self.e_id = ttk.Entry(e_row1, width=12); self.e_id.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(e_row1, text="암호:").pack(side=tk.LEFT, padx=(5,0))
+        self.e_pw = ttk.Entry(e_row1, width=12, show="*"); self.e_pw.pack(side=tk.LEFT, padx=5)
+        
+        self.show_pw_server = tk.BooleanVar(value=False)
+        ttk.Checkbutton(e_row1, text="보기", variable=self.show_pw_server, 
+                        command=lambda: self.e_pw.config(show="" if self.show_pw_server.get() else "*")).pack(side=tk.LEFT)
 
-        # 2. 서버 제어 센터 (버튼 3개 상하 배치 & 3중 안전장치)
-        ctrl_frame = ttk.LabelFrame(v_right, text="🚀 서버 제어 센터", padding=15)
-        ctrl_frame.pack(fill=tk.X, padx=5, pady=5)
+        e_row2 = ttk.Frame(self.ed_frame); e_row2.pack(fill=tk.X, pady=2)
+        ttk.Label(e_row2, text="전용폴더:").pack(side=tk.LEFT)
+        self.e_home = ttk.Entry(e_row2); self.e_home.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        self.home_browse_btn = ttk.Button(e_row2, text="📁", width=3, command=self._browse_user_home)
+        self.home_browse_btn.pack(side=tk.LEFT)
+        
+        self.use_default_home = tk.BooleanVar(value=True)
+        self.home_check = ttk.Checkbutton(e_row2, text="서버 루트 사용 (기본)", variable=self.use_default_home, 
+                                          command=self._toggle_home_edit)
+        self.home_check.pack(side=tk.LEFT, padx=(5, 0))
 
-        # [시작 버튼]
-        self.start_btn = tk.Button(
-            ctrl_frame, text="🚀 FTP 서버 가동 시작", bg="#28a745", fg="white",
-            font=("Malgun Gothic", 12, "bold"), height=2, command=self.start_server
-        )
-        self.start_btn.pack(fill=tk.X, pady=5)
+        self.perm_box = ttk.LabelFrame(self.ed_frame, text="권한", padding=5)
+        self.perm_box.pack(fill=tk.X, pady=5)
+        self.p_vars = {}
+        for i, (p, l) in enumerate([('e','접속'),('l','목록'),('r','읽기'),('w','쓰기'),('a','추가'),('d','삭제'),('f','이름'),('m','폴더')]):
+            v = tk.BooleanVar(value=True); self.p_vars[p] = v
+            ttk.Checkbutton(self.perm_box, text=l, variable=v).grid(row=i//4, column=i%4, sticky=tk.W, padx=5)
 
-        # [중단 버튼 & 체크박스]
-        stop_row = ttk.Frame(ctrl_frame); stop_row.pack(fill=tk.X, pady=5)
-        self.stop_vars = [tk.BooleanVar(value=False) for _ in range(3)]
-        self.stop_btn = tk.Button(
-            stop_row, text="🛑 서버 즉시 중단", bg="#6c757d", fg="#a0a0a0",
-            font=("Malgun Gothic", 11, "bold"), height=2, state=tk.DISABLED, command=self.stop_server
-        )
-        self.stop_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        for i in range(3):
-            ttk.Checkbutton(stop_row, variable=self.stop_vars[i], command=self._update_stop_btn_state).pack(side=tk.LEFT, padx=2)
+        e_row3 = ttk.Frame(self.ed_frame); e_row3.pack(fill=tk.X)
+        self.save_btn = ttk.Button(e_row3, text="💾 사용자 정보 저장 / 신규 추가", command=self._on_save_user); self.save_btn.pack(side=tk.RIGHT, pady=5)
 
-        # [재시작 버튼 & 체크박스]
-        restart_row = ttk.Frame(ctrl_frame); restart_row.pack(fill=tk.X, pady=5)
-        self.restart_vars = [tk.BooleanVar(value=False) for _ in range(3)]
-        self.restart_btn = tk.Button(
-            restart_row, text="♻️ 서버 엔진 재시작", bg="#6c757d", fg="#a0a0a0",
-            font=("Malgun Gothic", 11, "bold"), height=2, state=tk.DISABLED, command=self._on_restart_server
-        )
-        self.restart_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        for i in range(3):
-            ttk.Checkbutton(restart_row, variable=self.restart_vars[i], command=self._update_restart_btn_state).pack(side=tk.LEFT, padx=2)
+        # ID 입력에 따른 경로 자동 제안 바인딩
+        self.e_id.bind("<KeyRelease>", self._auto_suggest_home)
 
-        # 3. 실시간 활동 로그
-        log_frame = ttk.LabelFrame(v_right, text="📜 실시간 활동 로그", padding=15)
+    def _auto_suggest_home(self, event=None):
+        """아이디 입력 시 서버 루트 하위에 해당 아이디의 폴더를 자동 제안 (비어있을 때만)"""
+        if self.editing_index is not None: return
+        
+        uid = self.e_id.get().strip()
+        root = self.root_entry.get()
+        current_home = self.e_home.get().strip()
+        
+        # 이미 무언가 입력되어 있고, 그게 자동 제안된 형식이 아니라면 건드리지 않음
+        if uid:
+            suggested = os.path.normpath(os.path.join(root, uid))
+            # 비어있거나, 글자 수가 매우 적거나, 이전 아이디의 잔재일 때만 업데이트
+            if not current_home or current_home == root or current_home.startswith(root):
+                self.e_home.delete(0, tk.END)
+                self.e_home.insert(0, suggested)
+
+        log_frame = ttk.LabelFrame(right, text="📜 실시간 활동 로그", padding=15)
         log_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.log_text = scrolledtext.ScrolledText(log_frame, font=("Consolas", 10), state=tk.DISABLED, 
                                                  bg="#1e1e1e", fg="#dcdcdc", insertbackground="white")
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
-    def _auto_suggest_home(self, event=None):
-        """아이디 입력 시 서버 루트 하위에 해당 아이디의 폴더를 자동 제안 (비어있을 때만)"""
-        if self.editing_index is not None: return
-        uid = self.e_id.get().strip()
-        root = self.root_entry.get()
-        current_home = self.e_home.get().strip()
-        
-        if uid:
-            suggested = os.path.normpath(os.path.join(root, uid))
-            if not current_home or current_home == root or current_home.startswith(root):
-                self.e_home.delete(0, tk.END)
-                self.e_home.insert(0, suggested)
-
-    def _update_stop_btn_state(self):
-        """3개 체크박스 확인 후 중단 버튼 활성화/색상 변경"""
-        if all(v.get() for v in self.stop_vars):
-            self.stop_btn.config(state=tk.NORMAL, bg="#dc3545", fg="white")
-        else:
-            self.stop_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
-
-    def _update_restart_btn_state(self):
-        """3개 체크박스 확인 후 재시작 버튼 활성화/색상 변경"""
-        if all(v.get() for v in self.restart_vars):
-            self.restart_btn.config(state=tk.NORMAL, bg="#ffc107", fg="black")
-        else:
-            self.restart_btn.config(state=tk.DISABLED, bg="#6c757d", fg="#a0a0a0")
-
-    def _on_restart_server(self):
-        """서버 엔진 재시작 로직 (체크박스 초기화 포함)"""
-        self.stop_server()
-        self.after(1500, self.start_server)
-        for v in self.restart_vars: v.set(False)
-        self._update_restart_btn_state()
+        ctrl_row = ttk.Frame(right); ctrl_row.pack(fill=tk.X, pady=(0, 10), padx=5)
+        self.start_btn = ttk.Button(ctrl_row, text="🚀 FTP 서버 가동 시작", width=25, command=self.start_server)
+        self.start_btn.pack(side=tk.LEFT, padx=5)
+        self.stop_btn = ttk.Button(ctrl_row, text="🛑 서버 중지", width=15, state=tk.DISABLED, command=self.stop_server)
+        self.stop_btn.pack(side=tk.LEFT)
 
     def _on_tree_edit(self):
         sel = self.tree.selection()
@@ -544,12 +530,7 @@ class ServerTab(ttk.Frame):
         self.ftps_check.config(state=state)
         self.nat_check.config(state=state)
         self.start_btn.config(state=tk.DISABLED if running else tk.NORMAL)
-        # 중단 버튼은 체크박스 상태에 따라 결정되므로 초기화만 수행
-        if not running:
-            for v in self.stop_vars: v.set(False)
-            for v in self.restart_vars: v.set(False)
-            self._update_stop_btn_state()
-            self._update_restart_btn_state()
+        self.stop_btn.config(state=tk.NORMAL if running else tk.DISABLED)
         
         # 가동 중에는 체크박스들도 잠금
         # (익명, FTPS, NAT 등 중요 설정 보호)
