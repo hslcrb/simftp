@@ -436,11 +436,24 @@ class ServerTab(ttk.Frame):
             self.server_thread.start()
             self.update_ui_state(True) # Call to update UI state
             self.log(f"🚀 [서버 가동] 포트 {port}에서 서비스를 시작합니다.")
+        
+            # 프로젝트 루트 경로 가져오기 (상대 표기용)
+            p_root = self.config_manager.root_dir
             
-            # 경로 안내 로그 추가
-            self.log(f"📂 [공유 폴더] 기본 경로: {root}")
+            def get_rel_path_msg(abs_path):
+                try:
+                    if os.path.commonpath([p_root, abs_path]) == p_root:
+                        return f"./{os.path.relpath(abs_path, p_root)}"
+                    return abs_path
+                except Exception: return abs_path
+
+            self.log(f"📂 [공유 폴더] 기본 경로: {get_rel_path_msg(root)}")
             for u in self.users:
-                self.log(f"👤 [사용자] {u['username']} -> {u['home_dir']}")
+                u_home = u['home_dir']
+                if not os.path.isabs(u_home):
+                    u_home_abs = os.path.normpath(os.path.join(root, u_home))
+                else: u_home_abs = u_home
+                self.log(f"👤 [사용자] {u['username']} -> {get_rel_path_msg(u_home_abs)}")
         except Exception as e: self.log(f"오류: {e}")
 
     def stop_server(self):
