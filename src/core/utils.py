@@ -31,8 +31,8 @@ def get_public_ip():
     import subprocess
     try:
         # PowerShell을 사용하여 시스템 프록시를 완전히 무력화하고 조회
-        # ip.pe.kr은 국내 네트워크 환경에서 가장 정확한 결과를 제공합니다.
-        ps_script = "$ProgressPreference = 'SilentlyContinue'; [System.Net.WebRequest]::DefaultWebProxy = $null; Invoke-RestMethod -Uri 'https://api.ip.pe.kr/'"
+        # [System.Net.GlobalProxySelection]::GetEmptyWebProxy()는 가장 확실한 프록시 제거 방법입니다.
+        ps_script = "$ProgressPreference = 'SilentlyContinue'; [System.Net.WebRequest]::DefaultWebProxy = [System.Net.GlobalProxySelection]::GetEmptyWebProxy(); Invoke-RestMethod -Uri 'https://api.ip.pe.kr/'"
         cmd = ['powershell', '-Command', ps_script]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, shell=True)
         
