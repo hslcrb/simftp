@@ -325,7 +325,12 @@ class SettingsTab(ttk.Frame):
         
         # 현재 실행 파일(python.exe 또는 컴파일된 exe)과 인자들 확보
         python = sys.executable
-        os.execl(python, python, *sys.argv)
+        
+        # 현재 실행 파일(python.exe 또는 컴파일된 exe)과 인자들 확보
+        python = sys.executable
+        # os.execl(python, python, *sys.argv) # Windows에서 가끔 문제될 수 있음
+        subprocess.Popen([python] + sys.argv)
+        self.quit()
 
     def save_engine_settings(self):
         """엔진 설정값을 가져와 저장합니다."""

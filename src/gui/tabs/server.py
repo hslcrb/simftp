@@ -109,6 +109,9 @@ class ServerTab(ttk.Frame):
         self.log_text = None
         self.start_btn = None
         self.stop_btn = None
+        self.port_unlock = tk.BooleanVar(value=False)
+        self.use_nat = tk.BooleanVar(value=True)
+        self.show_pw_server = tk.BooleanVar(value=False)
 
         self._setup_ui()
         self.refresh_users_tree()
@@ -138,7 +141,7 @@ class ServerTab(ttk.Frame):
         self.port_entry.insert(0, str(self.config.get('port', 14729)))
         self.port_entry.config(state="readonly")
         
-        self.port_unlock = tk.BooleanVar(value=False)
+        self.port_unlock.set(False)
         self.port_lock_check = ttk.Checkbutton(port_group, text="수정", variable=self.port_unlock,
                                               command=lambda: self.port_entry.config(state=tk.NORMAL if self.port_unlock.get() else "readonly"))
         self.port_lock_check.pack(side=tk.LEFT)
@@ -171,7 +174,7 @@ class ServerTab(ttk.Frame):
         self.anon_check.pack(side=tk.LEFT, padx=10)
         self.ftps_check = ttk.Checkbutton(opt_row, text="FTPS 보안 활성화", variable=self.use_ftps)
         self.ftps_check.pack(side=tk.LEFT, padx=10)
-        self.use_nat = tk.BooleanVar(value=True)
+        self.use_nat.set(True)
         self.nat_check = ttk.Checkbutton(opt_row, text="NAT/외부망 우회", variable=self.use_nat)
         self.nat_check.pack(side=tk.LEFT, padx=10)
 
@@ -216,7 +219,7 @@ class ServerTab(ttk.Frame):
         ttk.Label(e_row1, text="암호:").pack(side=tk.LEFT, padx=(5,0))
         self.e_pw = ttk.Entry(e_row1, width=12, show="*"); self.e_pw.pack(side=tk.LEFT, padx=5)
         
-        self.show_pw_server = tk.BooleanVar(value=False)
+        self.show_pw_server.set(False)
         ttk.Checkbutton(e_row1, text="보기", variable=self.show_pw_server, 
                         command=lambda: self.e_pw.config(show="" if self.show_pw_server.get() else "*")).pack(side=tk.LEFT)
 
@@ -244,6 +247,20 @@ class ServerTab(ttk.Frame):
         # ID 입력에 따른 경로 자동 제안 바인딩
         self.e_id.bind("<KeyRelease>", self._auto_suggest_home)
 
+        # 실시간 활동 로그
+        log_frame = ttk.LabelFrame(right, text="📜 실시간 활동 로그", padding=15)
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.log_text = scrolledtext.ScrolledText(log_frame, font=("Consolas", 10), state=tk.DISABLED, 
+                                                 bg="#1e1e1e", fg="#dcdcdc", insertbackground="white")
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+
+        # 서버 시작/중지 버튼
+        ctrl_row = ttk.Frame(right); ctrl_row.pack(fill=tk.X, pady=(0, 10), padx=5)
+        self.start_btn = ttk.Button(ctrl_row, text="🚀 FTP 서버 가동 시작", width=25, command=self.start_server)
+        self.start_btn.pack(side=tk.LEFT, padx=5)
+        self.stop_btn = ttk.Button(ctrl_row, text="🛑 서버 중지", width=15, state=tk.DISABLED, command=self.stop_server)
+        self.stop_btn.pack(side=tk.LEFT)
+
     def _auto_suggest_home(self, event=None):
         """아이디 입력 시 서버 루트 하위에 해당 아이디의 폴더를 자동 제안 (비어있을 때만)"""
         if self.editing_index is not None: return
@@ -259,18 +276,6 @@ class ServerTab(ttk.Frame):
             if not current_home or current_home == root or current_home.startswith(root):
                 self.e_home.delete(0, tk.END)
                 self.e_home.insert(0, suggested)
-
-        log_frame = ttk.LabelFrame(right, text="📜 실시간 활동 로그", padding=15)
-        log_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.log_text = scrolledtext.ScrolledText(log_frame, font=("Consolas", 10), state=tk.DISABLED, 
-                                                 bg="#1e1e1e", fg="#dcdcdc", insertbackground="white")
-        self.log_text.pack(fill=tk.BOTH, expand=True)
-
-        ctrl_row = ttk.Frame(right); ctrl_row.pack(fill=tk.X, pady=(0, 10), padx=5)
-        self.start_btn = ttk.Button(ctrl_row, text="🚀 FTP 서버 가동 시작", width=25, command=self.start_server)
-        self.start_btn.pack(side=tk.LEFT, padx=5)
-        self.stop_btn = ttk.Button(ctrl_row, text="🛑 서버 중지", width=15, state=tk.DISABLED, command=self.stop_server)
-        self.stop_btn.pack(side=tk.LEFT)
 
     def _on_tree_edit(self):
         sel = self.tree.selection()
