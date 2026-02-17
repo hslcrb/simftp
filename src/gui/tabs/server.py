@@ -300,12 +300,27 @@ class ServerTab(ttk.Frame):
             self.users.pop(idx); self.config_manager.save_users(self.users); self.refresh_users_tree()
 
     def _browse_root(self):
-        d = filedialog.askdirectory(); 
-        if d: self.root_entry.delete(0, tk.END); self.root_entry.insert(0, d)
+        old_root = self.root_entry.get()
+        d = filedialog.askdirectory()
+        if d:
+            new_root = os.path.normpath(d)
+            self.root_entry.delete(0, tk.END)
+            self.root_entry.insert(0, new_root)
+            
+            # 기존 유저들 중 예전 루트를 사용하던 유저가 있다면 일괄 변경 제안
+            if self.users:
+                if messagebox.askyesno("경로 동기화", "서버 루트가 변경되었습니다.\n기존 모든 사용자들의 전용 폴더도 이 경로로 함께 변경하시겠습니까?"):
+                    for u in self.users:
+                        u['home_dir'] = new_root
+                    self.config_manager.save_users(self.users)
+                    self.refresh_users_tree()
+                    self.log(f"🔄 [동기화] 모든 사용자의 경로를 {new_root}(으)로 업데이트했습니다.")
     
     def _browse_user_home(self):
-        d = filedialog.askdirectory(); 
-        if d: self.e_home.delete(0, tk.END); self.e_home.insert(0, d)
+        d = filedialog.askdirectory()
+        if d: 
+            self.e_home.delete(0, tk.END)
+            self.e_home.insert(0, os.path.normpath(d))
 
     def refresh_users_tree(self):
         for i in self.tree.get_children(): self.tree.delete(i)
