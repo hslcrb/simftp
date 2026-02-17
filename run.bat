@@ -3,15 +3,16 @@ setlocal
 cd /d %~dp0
 
 if not exist venv (
-    echo [System] 가상환경을 생성 중입니다...
+    echo [System] Creating virtual environment...
     python -m venv venv
 )
 
 call venv\Scripts\activate.bat
 
-echo [System] 필수 라이브러리 체크 중...
+echo [System] Checking required libraries...
+set PYTHONUTF8=1
 pip install -r requirements.txt --quiet
 
-echo [System] SimpleFTP Pro를 시작합니다...
+echo [System] Starting SimpleFTP Pro...
 python src/main.py
 pause
