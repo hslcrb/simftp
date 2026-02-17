@@ -137,20 +137,23 @@ class SettingsTab(ttk.Frame):
 
         e_row1 = ttk.Frame(eng_frame); e_row1.pack(fill=tk.X, pady=2)
         ttk.Label(e_row1, text="최대 동시 접속:").pack(side=tk.LEFT)
-        self.max_cons = ttk.Entry(e_row1, width=8, state=tk.DISABLED); self.max_cons.pack(side=tk.LEFT, padx=5)
+        self.max_cons = tk.Entry(e_row1, width=8, state=tk.DISABLED, disabledbackground="#f0f0f0", disabledforeground="#000000")
+        self.max_cons.pack(side=tk.LEFT, padx=5)
         self.max_cons.insert(0, str(self.config_manager.get_server_config().get('max_cons', 256)))
         ttk.Checkbutton(e_row1, text="잠금 해제", variable=self.lock_max_cons, 
                         command=lambda: self.max_cons.config(state=tk.NORMAL if not self.lock_max_cons.get() else tk.DISABLED)).pack(side=tk.LEFT)
 
         ttk.Label(e_row1, text="IP당 최대 접속:").pack(side=tk.LEFT, padx=(20, 0))
-        self.max_per_ip = ttk.Entry(e_row1, width=8, state=tk.DISABLED); self.max_per_ip.pack(side=tk.LEFT, padx=5)
+        self.max_per_ip = tk.Entry(e_row1, width=8, state=tk.DISABLED, disabledbackground="#f0f0f0", disabledforeground="#000000")
+        self.max_per_ip.pack(side=tk.LEFT, padx=5)
         self.max_per_ip.insert(0, str(self.config_manager.get_server_config().get('max_cons_per_ip', 10)))
         ttk.Checkbutton(e_row1, text="잠금 해제", variable=self.lock_max_per_ip, 
                         command=lambda: self.max_per_ip.config(state=tk.NORMAL if not self.lock_max_per_ip.get() else tk.DISABLED)).pack(side=tk.LEFT)
 
         e_row2 = ttk.Frame(eng_frame); e_row2.pack(fill=tk.X, pady=5)
         ttk.Label(e_row2, text="대기 타임아웃(초):").pack(side=tk.LEFT)
-        self.timeout = ttk.Entry(e_row2, width=8, state=tk.DISABLED); self.timeout.pack(side=tk.LEFT, padx=5)
+        self.timeout = tk.Entry(e_row2, width=8, state=tk.DISABLED, disabledbackground="#f0f0f0", disabledforeground="#000000")
+        self.timeout.pack(side=tk.LEFT, padx=5)
         self.timeout.insert(0, str(self.config_manager.get_server_config().get('timeout', 600)))
         ttk.Checkbutton(e_row2, text="잠금 해제", variable=self.lock_timeout, 
                         command=lambda: self.timeout.config(state=tk.NORMAL if not self.lock_timeout.get() else tk.DISABLED)).pack(side=tk.LEFT)
