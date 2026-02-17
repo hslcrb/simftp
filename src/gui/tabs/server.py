@@ -132,6 +132,23 @@ class ServerTab(ttk.Frame):
         self.nat_check = ttk.Checkbutton(opt_row, text="NAT/외부망 우회", variable=self.use_nat)
         self.nat_check.pack(side=tk.LEFT, padx=10)
 
+        # [자동 실행] 별도 스레드에서 내부/공인 IP 동시 조회 후 UI 갱신
+        def update_all_ips():
+            import time
+            from core.utils import get_local_ip, get_public_ip
+            # 화면에 로딩 상태를 즉시 반영
+            self.after(0, lambda: [self.ip_display.config(text="로딩 중..."), self.pub_ip_label.config(text="로딩 중...")])
+            self.after(0, self.update_idletasks)
+            time.sleep(1.2) # 시각적 효과를 위한 최소 대기 시간
+            
+            lip = get_local_ip()
+            pip = get_public_ip()
+            
+            # 최종 결과 반영
+            self.after(0, lambda: [self.ip_display.config(text=lip), self._update_pub_ip_ui(pip)])
+        
+        threading.Thread(target=update_all_ips, daemon=True).start()
+
         list_frame = ttk.LabelFrame(left, text="👥 계정 목록", padding=10)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
