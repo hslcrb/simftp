@@ -2,13 +2,22 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import os
 import shutil
+import threading
+import time
+from datetime import datetime, timedelta, timezone
 
 class SettingsTab(ttk.Frame):
-    """보안 도구 및 초기화 기능을 제공하는 설정 탭"""
-    def __init__(self, parent, config_manager):
+    """보안 도구 및 서버 자동 재시작 스케줄링 기능을 제공하는 설정 탭"""
+    def __init__(self, parent, config_manager, server_tab):
         super().__init__(parent)
         self.config_manager = config_manager
+        self.server_tab = server_tab
+        
+        # 권장 설정: 매일 00:01 한국 표준시(KST) 재시작 활성화
+        self.auto_restart = tk.BooleanVar(value=True)
+        
         self._setup_ui()
+        self._start_scheduler()
 
     def _setup_ui(self):
         container = ttk.Frame(self, padding=20)
@@ -16,6 +25,18 @@ class SettingsTab(ttk.Frame):
 
         header = ttk.Label(container, text="🛠️ 시스템 설정 및 보안 도구", font=("Malgun Gothic", 16, "bold"))
         header.pack(pady=(0, 20))
+
+        # --- 서버 관리 스케줄링 ---
+        sched_frame = ttk.LabelFrame(container, text="📅 서버 관리 스케줄링 (권장 설정)", padding=15)
+        sched_frame.pack(fill=tk.X, pady=10)
+
+        sched_info = (
+            "서버의 안정성과 바뀐 공인 IP의 자동 갱신을 위해\n"
+            "매일 00시 01분(KST)에 서버를 자동으로 재시작합니다."
+        )
+        ttk.Label(sched_frame, text=sched_info).pack(side=tk.LEFT, padx=(0, 20))
+        
+        ttk.Checkbutton(sched_frame, text="매일 00:01 (KST) 자동 재시작 활성화", variable=self.auto_restart).pack(side=tk.RIGHT)
 
         # --- 위험 구역 (Critical Zone) ---
         danger_frame = ttk.LabelFrame(container, text="🚨 위험 구역 (Critical Zone)", padding=15)
@@ -62,6 +83,51 @@ class SettingsTab(ttk.Frame):
         config_path = self.config_manager.config_dir
         ttk.Label(info_frame, text=f"설정 저장 경로: {config_path}").pack(anchor=tk.W)
 
+    def _start_scheduler(self):
+        """백그라운드 스케줄러 스레드 시작"""
+        thread = threading.Thread(target=self._scheduler_loop, daemon=True)
+        thread.start()
+
+    def _scheduler_loop(self):
+        """매일 00:01 KST에 서버 재시작 여부 확인"""
+        last_run_date = ""
+        while True:
+            try:
+                if self.auto_restart.get():
+                    # KST (UTC+9) 시간 계산
+                    kst_now = datetime.now(timezone(timedelta(hours=9)))
+                    current_date = kst_now.strftime("%Y-%m-%d")
+                    
+                    # 00:01분인지 확인 (초 단위는 무시하고 1분 동안 체크)
+                    if kst_now.hour == 0 and kst_now.minute == 1:
+                        if last_run_date != current_date:
+                            self.server_tab.log("⏰ 스케줄러: 예정된 자동 재시작을 수행합니다. (KST 00:01)")
+                            self._perform_restart()
+                            last_run_date = current_date
+                
+                # 30초마다 체크
+                time.sleep(30)
+            except Exception as e:
+                print(f"[Scheduler Error] {e}")
+                time.sleep(60)
+
+    def _perform_restart(self):
+        """서버가 구동 중이면 중지 후 다시 시작"""
+        if self.server_tab.server:
+            # GUI 스레드에서 실행하도록 after 사용
+            self.after(0, self._restart_logic)
+
+    def _restart_logic(self):
+        """실제 재시작 로직 호출 (GUI 세이프)"""
+        was_running = self.server_tab.server is not None
+        if was_running:
+            self.server_tab.stop_server()
+            # 서버가 완전히 내려갈 시간을 약간 줌
+            self.after(2000, self.server_tab.start_server)
+        else:
+            # 가동 중이 아니었더라도 자동 가동 설정에 따라 시작 가능
+            self.server_tab.start_server()
+
     def confirm_reset_master_key(self):
         """3번의 경고 후 마스터 키 초기화"""
         if not messagebox.askretrycancel("⚠️ 1차 경고", "정말로 마스터 키를 초기화하시겠습니까?\n모든 계정의 비밀번호를 읽을 수 없게 됩니다."):
@@ -76,7 +142,6 @@ class SettingsTab(ttk.Frame):
             if os.path.exists(key_path):
                 os.remove(key_path)
             
-            # 재생성 유도 (utils.get_master_key 호출)
             from core.utils import get_master_key
             get_master_key()
             

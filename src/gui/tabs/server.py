@@ -98,7 +98,7 @@ class ServerTab(ttk.Frame):
                                               command=lambda: self.port_entry.config(state=tk.NORMAL if self.port_unlock.get() else "readonly"))
         self.port_lock_check.pack(side=tk.LEFT, padx=2)
         
-        ttk.Label(row1, text="IP (로컬/공외):").pack(side=tk.LEFT, padx=(10, 5))
+        ttk.Label(row1, text="IP (내부/공인):").pack(side=tk.LEFT, padx=(10, 5))
         self.ip_display = ttk.Label(row1, text=get_local_ip(), foreground="blue", font=("Consolas", 10, "bold"))
         self.ip_display.pack(side=tk.LEFT)
         

@@ -22,7 +22,7 @@ class SimpleFTPApp:
         # 탭 추가
         self.server_tab = ServerTab(self.notebook, self.config_manager)
         self.client_tab = ClientTab(self.notebook, self.config_manager)
-        self.settings_tab = SettingsTab(self.notebook, self.config_manager)
+        self.settings_tab = SettingsTab(self.notebook, self.config_manager, self.server_tab)
 
         self.notebook.add(self.server_tab, text=" 🖥️ FTP 서버 제어 ")
         self.notebook.add(self.client_tab, text=" ☁️ FTP 파일 클라이언트 ")
