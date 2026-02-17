@@ -5,14 +5,25 @@ from OpenSSL import crypto
 import os
 
 def get_local_ip():
-    """현재 시스템의 로컬 IP 주소를 반환합니다."""
+    """시스템 명령어를 사용하여 실제 네트워크 어댑터에 할당된 유효한 내부 IP를 반환합니다."""
+    import subprocess
     try:
+        # ipconfig 결과에서 IPv4 주소만 추출 (가장 일반적인 방식)
+        result = subprocess.run(['ipconfig'], capture_output=True, text=True)
+        for line in result.stdout.split('\n'):
+            if 'IPv4' in line and ':' in line:
+                ip = line.split(':')[-1].strip()
+                # 가상 이더넷이나 루프백이 아닌 실제 할당된 IP 탐색 (보통 192.168.x.x 또는 10.x.x.x)
+                if ip.startswith('192.168.') or ip.startswith('10.'):
+                    return ip
+        # 못 찾으면 기본 소켓 방식 시도
+        import socket
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
+        res = s.getsockname()[0]
         s.close()
-        return ip
-    except Exception:
+        return res
+    except:
         return "127.0.0.1"
 
 def get_public_ip():
