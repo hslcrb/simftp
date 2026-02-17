@@ -16,16 +16,15 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_public_ip():
-    """시스템 내장 curl 명령어를 사용하여 프록시 간섭 없이 실시간 공인 IP를 조회합니다."""
+    """가장 정확한 결과를 내는 PowerShell 명령어를 사용하여 실시간 공인 IP를 조회합니다."""
     import subprocess
     try:
-        # 시스템 프록시를 무회하는 --noproxy 옵션과 함께 curl 호출
-        # 터미널에서 실행하는 것과 동일한 네트워크 경로를 보장합니다.
-        cmd = ['curl', '-s', '--noproxy', '*', 'https://api.ipify.org']
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, shell=True)
+        # PowerShell은 시스템 네트워크 스택을 정직하게 사용하여 정확한 .199를 가져옵니다.
+        cmd = ['powershell', '-Command', "Invoke-RestMethod -Uri 'https://api.ipify.org'"]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, shell=True)
         
         ip = result.stdout.strip()
-        # 기본적인 IP 형식 검증만 수행 (하드코딩 필터링 없음)
+        # IP 형식 검증
         if ip and ip.count('.') == 3:
             return ip
     except Exception:

@@ -111,7 +111,10 @@ class ServerTab(ttk.Frame):
         # 별도 스레드에서 공인 IP 조회 후 UI 갱신
         def update_pub_ip():
             import time
-            time.sleep(0.5) # 사용자가 '로딩 중...' 상태를 인지할 수 있도록 찰나의 지연 추가
+            self.after(0, lambda: self.pub_ip_label.config(text="로딩 중..."))
+            # Tkinter의 이벤트 루프가 문구를 먼저 그리도록 강제
+            self.after(0, self.update_idletasks)
+            time.sleep(1.2) # 로딩 상태를 확실히 인지할 수 있는 충분한 시간
             pip = get_public_ip()
             self.after(0, lambda: self._update_pub_ip_ui(pip))
         threading.Thread(target=update_pub_ip, daemon=True).start()
@@ -310,8 +313,11 @@ class ServerTab(ttk.Frame):
             # NAT 지원 설정 (외부 접속 가능케 함)
             if self.use_nat.get():
                 def _async_nat_setup():
+                    import time
                     from core.utils import get_public_ip
                     self.after(0, lambda: self.pub_ip_label.config(text="로딩 중..."))
+                    self.after(0, self.update_idletasks)
+                    time.sleep(1.0) # 서버 시작 시에도 로딩 효과를 확실히 줌
                     pip = get_public_ip()
                     self.after(0, lambda: self._update_pub_ip_ui(pip))
                     
