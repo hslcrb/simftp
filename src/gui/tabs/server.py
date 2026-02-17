@@ -289,7 +289,15 @@ class ServerTab(ttk.Frame):
         self.e_pw.delete(0, tk.END); self.e_pw.insert(0, raw_pw)
         
         home_val = u['home_dir']
-        self.e_home.delete(0, tk.END); self.e_home.insert(0, home_val if home_val else self.config['root_dir'])
+        root_curr = self.root_entry.get()
+        if home_val and not os.path.isabs(home_val):
+            # 저장된게 상대경로라면 편집창엔 절대경로로 풀어서 보여줌 (저장시 다시 계산됨)
+            disp = os.path.normpath(os.path.join(root_curr, home_val))
+        else:
+            # 절대경로거나 비어있음(루트)
+            disp = home_val if home_val else root_curr
+            
+        self.e_home.delete(0, tk.END); self.e_home.insert(0, disp)
         
         # 홈 디렉토리가 비어있으면(상속) 체크박스 활성화
         self.use_default_home.set(home_val == "")
