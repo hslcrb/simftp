@@ -323,8 +323,6 @@ class SettingsTab(ttk.Frame):
         # 메인 윈도우 종료 루틴
         self.server_tab.log("📢 시스템 재부팅: 앱을 재시작합니다...")
         
-        # 현재 실행 파일(python.exe 또는 컴파일된 exe)과 인자들 확보
-        python = sys.executable
         
         # 현재 실행 파일(python.exe 또는 컴파일된 exe)과 인자들 확보
         python = sys.executable

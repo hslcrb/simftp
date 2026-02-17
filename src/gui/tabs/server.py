@@ -340,17 +340,17 @@ class ServerTab(ttk.Frame):
             # [지능형 경로 관리] 서버 루트 하위 경로라면 상대 경로로 변환하여 저장
             root = os.path.normpath(self.root_entry.get())
             home_abs = os.path.normpath(home)
-        
-        try:
-            if os.path.commonpath([root, home_abs]) == root:
-                # 루트와 같거나 루트의 하위인 경우 상대 경로로 추출
-                rel_path = os.path.relpath(home_abs, root)
-                # 만약 루트 그 자체라면 '.' 가 반환됨
-                save_path = rel_path if rel_path != "." else ""
-            else:
-                save_path = home_abs # 루트 밖이라면 절대 경로 유지
-        except ValueError:
-            save_path = home_abs
+            
+            try:
+                if os.path.commonpath([root, home_abs]) == root:
+                    # 루트와 같거나 루트의 하위인 경우 상대 경로로 추출
+                    rel_path = os.path.relpath(home_abs, root)
+                    # 만약 루트 그 자체라면 '.' 가 반환됨
+                    save_path = rel_path if rel_path != "." else ""
+                else:
+                    save_path = home_abs # 루트 밖이라면 절대 경로 유지
+            except ValueError:
+                save_path = home_abs
 
         # 양방향 암호화 적용
         encrypted_pw = encrypt_password(pw)
