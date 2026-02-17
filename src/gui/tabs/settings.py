@@ -129,12 +129,12 @@ class SettingsTab(ttk.Frame):
             self.server_tab.start_server()
 
     def confirm_reset_master_key(self):
-        """3번의 경고 후 마스터 키 초기화"""
-        if not messagebox.askretrycancel("⚠️ 1차 경고", "정말로 마스터 키를 초기화하시겠습니까?\n모든 계정의 비밀번호를 읽을 수 없게 됩니다."):
+        """3번의 경고 후 마스터 키 초기화 (진행률 표시)"""
+        if not messagebox.askretrycancel("⚠️ 1단계 경고 (1/3)", "정말로 마스터 키를 초기화하시겠습니까?\n이 작업은 모든 계정의 비밀번호를 읽을 수 없게 만듭니다."):
             return
-        if not messagebox.askyesno("⚠️⚠️ 2차 경고", "이 작업은 되돌릴 수 없습니다. \n계속하시겠습니까?"):
+        if not messagebox.askyesno("⚠️⚠️ 2단계 경고 (2/3)", "이 작업은 절대로 되돌릴 수 없습니다.\n계속 진행하시겠습니까?"):
             return
-        if not messagebox.askokcancel("⚠️⚠️⚠️ 최종 확인", "마지막 확인입니다. 클릭 시 즉시 삭제 및 재생성됩니다."):
+        if not messagebox.askokcancel("⚠️⚠️⚠️ 최종 확인 (3/3)", "마지막 확인입니다. [확인] 클릭 시 즉시 삭제 및 재생성됩니다."):
             return
         
         try:
@@ -150,8 +150,12 @@ class SettingsTab(ttk.Frame):
             messagebox.showerror("오류", f"초기화 실패: {str(e)}")
 
     def confirm_reset_certs(self):
-        """SSL 인증서 초기화"""
-        if not messagebox.askyesno("확인", "인증서를 초기화하고 새로 만드시겠습니까?"):
+        """3번의 경고 후 SSL 인증서 초기화 (진행률 표시)"""
+        if not messagebox.askretrycancel("⚠️ 1단계 경고 (1/3)", "SSL/TLS 인증서를 초기화하시겠습니까?\n기존 보안 연결 정보가 삭제됩니다."):
+            return
+        if not messagebox.askyesno("⚠️⚠️ 2단계 경고 (2/3)", "인증서를 새로 생성하면 기존 연결이 끊길 수 있습니다.\n계속하시겠습니까?"):
+            return
+        if not messagebox.askokcancel("⚠️⚠️⚠️ 최종 확인 (3/3)", "인증서와 개인키를 삭제하고 즉시 다시 만듭니다."):
             return
             
         try:
